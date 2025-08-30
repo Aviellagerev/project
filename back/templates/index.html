@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shared Folder Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+  <!-- LOGIN SECTION -->
+  <div id="login-section" class="login-container">
+    <h2>Login</h2>
+    <form id="login-form">
+      <input type="text" name="username" placeholder="Username" required><br>
+      <input type="password" name="password" placeholder="Password" required><br>
+      <button type="submit">Login</button>
+    </form>
+    <div id="error-message" class="error">
+      {% if error %}
+        {{ error }}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- MAIN UPLOAD SECTION (Hidden initially) -->
+  <div class="main-container" id="upload-main-container" style="display:none;">
+
+    <!-- LOGOUT SECTION -->
+    <div id="logout-section" class="logout-container" style="display:none;">
+      <span id="greeting">
+        <span class="greeting-word">Hello,</span>
+        <span class="username">{{ user_name }}</span>
+      </span>
+      <button id="logout-btn">Logout</button>
+    </div>
+
+    <!-- CONTENT ROW: Upload + Uploaded Files -->
+    <div class="content-row">
+
+      <!-- UPLOAD FILES -->
+      <div id="upload-section" class="upload-container">
+        <h2>Upload Files</h2>
+        <div class="drop-zone" id="drop-zone">Drag & Drop files here</div>
+        <div style="margin-top: 10px;"></div>
+        <button id="select-file-btn">Upload File</button>
+        <input type="file" id="file-input" style="display:none;" multiple>
+      </div>
+
+      <!-- UPLOADED FILES -->
+      <div id="uploaded-files-section" class="upload-container">
+        <h2 id="uploaded-files-title">Uploaded Files</h2>
+        <ul id="file-list">
+          {% for file in files %}
+          <li>
+            <div class="file-info">
+              <a href="/uploads/{{ file.filename }}" download>{{ file.filename }}</a>
+              <span class="file-date">{{ file.upload_time }}</span>
+            </div>
+            <span class="file-options">
+              <span class="menu-trigger" style="cursor:pointer; margin-left:10px;">⋮</span>
+              <div class="options-menu">
+                <button class="download-btn" data-filename="{{ file.filename }}">Download</button>
+                <button class="delete-btn" data-filename="{{ file.filename }}">Delete</button>
+              </div>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </div> <!-- end content-row -->
+
+  </div> <!-- end main-container -->
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

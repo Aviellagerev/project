@@ -1,0 +1,242 @@
+/* -------------------- GLOBAL -------------------- */
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  margin: 0;
+  padding-top: 50px;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background-color: #ccfeff;
+  color: black;
+}
+
+button:hover {
+  opacity: 0.9;
+  background-color: #a7c6c7;
+}
+
+/* -------------------- MAIN CONTAINERS -------------------- */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.login-container,
+.upload-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  width: 400px;
+  text-align: center;
+}
+
+.logout-container {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 965px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* -------------------- INPUTS & ERROR -------------------- */
+input[type="text"],
+input[type="password"] {
+  width: 90%;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.error {
+  color: red;
+  margin-bottom: 1rem;
+}
+
+/* -------------------- UPLOAD BOX -------------------- */
+.drop-zone {
+  margin-top: 0.5rem;
+  border: 2px dashed #ccc;
+  border-radius: 10px;
+  padding: 2rem;
+  background: #fafafa;
+  transition: 0.3s;
+}
+
+.drop-zone.dragover {
+  background: #e6f7ff;
+  border-color: #3399ff;
+}
+
+/* -------------------- UPLOAD & FILE LIST -------------------- */
+#upload-section {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#uploaded-files-section {
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+#uploaded-files-title {
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1em;
+}
+
+#file-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+#file-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  margin: 4px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #f9f9f9;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+#file-list li:hover {
+  background: #cccccc;
+  border-color: #cccccc;
+}
+
+#file-list a {
+  text-decoration: none;
+  color: black;
+  font-weight: normal;
+  display: block;
+  transition: color 0.2s, font-weight 0.2s;
+}
+
+#file-list a:hover {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+}
+
+.file-date {
+  font-size: 0.6em;
+  color: #666;
+  margin-left: 20px;
+  margin-right: 15px;
+}
+
+/* -------------------- OPTIONS MENU -------------------- */
+.file-options {
+  position: relative;
+  display: inline-block;
+}
+
+.options-menu {
+  display: none;
+  font-weight: bold;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.options-menu button {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  width: 100%;
+  text-align: left;
+}
+
+.options-menu button.download-btn {
+  background-color: #ccfeff;
+  color: black;
+}
+
+.options-menu button.download-btn:hover {
+  background-color: #a7c6c7;
+}
+
+.options-menu button.delete-btn {
+  background-color: #ffcccc;
+  color: black;
+}
+
+.options-menu button.delete-btn:hover {
+  background-color: #d1a7a7;
+}
+
+/* -------------------- LOGOUT -------------------- */
+#greeting .greeting-word {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+#greeting .username {
+  font-size: 1.3em;
+  margin-left: 3px;
+  font-weight: bold;
+}
+
+#logout-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #ffcccc;
+  color: black;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#logout-btn:hover {
+  background-color: #d1a7a7;
+}
+
+/* -------------------- CONTENT ROW -------------------- */
+.content-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 30px;
+  width: 100%;
+  max-width: 1000px;
+}
