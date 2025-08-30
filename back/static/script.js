@@ -1,158 +1,193 @@
 const loginForm = document.getElementById('login-form');
 const errorMessage = document.getElementById('error-message');
 const loginSection = document.getElementById('login-section');
-const uploadMainContainer = document.getElementById('upload-main-container');
-const logoutSection = document.getElementById('logout-section');
-const dropZone = document.getElementById('drop-zone');
+const appRoot = document.getElementById('app');
+const greetingEl = document.getElementById('greeting');
+const logoutBtn = document.getElementById('logout-btn');
+const dropCover = document.getElementById('drop-cover');
 const fileList = document.getElementById('file-list');
 const fileInput = document.getElementById('file-input');
 const selectFileBtn = document.getElementById('select-file-btn');
+const floatingMenu = document.getElementById('floating-menu');
+const globalOverlay = document.getElementById('global-drop-overlay');
+const uploadStats = document.getElementById('upload-stats');
+const cardRoot = document.getElementById('card-root');
+
+let eventSource = null;
+let loggedIn = false;
+let dragDepth = 0;
 
 // ---------- LOGIN ----------
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const formData = new FormData(loginForm);
-  const res = await fetch('/login', { method: 'POST', body: formData });
-
-  if (res.redirected) {
-    loginSection.style.display = 'none';
-    uploadMainContainer.style.display = 'flex';
-    logoutSection.style.display = 'flex';
-    const username = loginForm.elements['username'].value;
-    document.getElementById('greeting').innerHTML =
-        `<span class="greeting-word">Hello,</span> <span class="username">${username}</span>`;
-  } else {
-    const html = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const error = doc.getElementById('error-message');
-    errorMessage.innerText = error ? error.innerText : 'Login failed';
-  }
-});
-
-// ---------- FILE UPLOAD ----------
-async function uploadFiles(files) {
-  for (let file of files) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch('/upload', { method: 'POST', body: formData });
-    const data = await res.json();
-    addFileToList(data);
-  }
-  alert('Files uploaded successfully');
-}
-
-// Drag & Drop
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
-dropZone.addEventListener('drop', async e => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  await uploadFiles(e.dataTransfer.files);
-});
-
-// Upload via button
-selectFileBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', async () => {
-  await uploadFiles(fileInput.files);
-  fileInput.value = '';
-});
-
-// ---------- ADD FILE TO LIST ----------
-function addFileToList(data) {
-  let existingLi = Array.from(fileList.children).find(
-    li => li.querySelector('a').textContent === data.filename
-  );
-  if (existingLi) {
-    existingLi.querySelector('.file-date').textContent = data.upload_time;
-  } else {
-    const li = document.createElement('li');
-    li.style.display = 'flex';
-    li.style.justifyContent = 'space-between';
-    li.style.alignItems = 'center';
-
-    const link = document.createElement('a');
-    link.textContent = data.filename;
-    link.href = '/uploads/' + encodeURIComponent(data.filename);
-    link.target = '_blank';
-
-    const rightSide = document.createElement('div');
-    rightSide.style.display = 'flex';
-    rightSide.style.alignItems = 'center';
-
-    const timeSpan = document.createElement('span');
-    timeSpan.textContent = data.upload_time;
-    timeSpan.classList.add('file-date');
-    timeSpan.style.marginRight = '25px';
-
-    const optionsWrapper = document.createElement('div');
-    optionsWrapper.classList.add('file-options');
-
-    const menuIcon = document.createElement('span');
-    menuIcon.classList.add('menu-trigger');
-    menuIcon.textContent = '⋮';
-    menuIcon.style.cursor = 'pointer';
-
-    const optionsMenu = document.createElement('div');
-    optionsMenu.classList.add('options-menu');
-
-    const downloadBtn = document.createElement('button');
-    downloadBtn.classList.add('download-btn');
-    downloadBtn.dataset.filename = data.filename;
-    downloadBtn.textContent = 'Download';
-    optionsMenu.appendChild(downloadBtn);
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.classList.add('delete-btn');
-    deleteBtn.dataset.filename = data.filename;
-    deleteBtn.textContent = 'Delete';
-    optionsMenu.appendChild(deleteBtn);
-
-    optionsWrapper.appendChild(menuIcon);
-    optionsWrapper.appendChild(optionsMenu);
-
-    rightSide.appendChild(timeSpan);
-    rightSide.appendChild(optionsWrapper);
-
-    li.appendChild(link);
-    li.appendChild(rightSide);
-    fileList.appendChild(li);
-  }
-}
-
-// ---------- EVENT DELEGATION FOR OPTIONS & DELETE ----------
-fileList.addEventListener('click', (e) => {
-  // Toggle options menu
-  if (e.target.classList.contains('menu-trigger')) {
-    const optionsMenu = e.target.nextElementSibling;
-    const isVisible = optionsMenu.style.display === 'block';
-    document.querySelectorAll('.options-menu').forEach(m => m.style.display = 'none');
-    optionsMenu.style.display = isVisible ? 'none' : 'block';
-  }
-
-  // Download file
-  if (e.target.classList.contains('download-btn')) {
-    const filename = e.target.dataset.filename;
-    window.location.href = '/uploads/' + encodeURIComponent(filename);
-  }
-
-  // Delete file
-  if (e.target.classList.contains('delete-btn')) {
-    const li = e.target.closest('li');
-    const filename = e.target.dataset.filename;
-    fetch('/delete/' + encodeURIComponent(filename), { method: 'DELETE' })
-      .then(res => res.json())
-      .then(result => {
-        if (result.success) li.remove();
-        else alert('Error deleting file: ' + result.error);
-      });
-  }
-});
-
-// ---------- LOGOUT ----------
-const logoutBtn = document.getElementById('logout-btn');
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    window.location.href = '/logout';
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(loginForm);
+    try {
+      const res = await fetch('/login', {method:'POST',body:formData,credentials:'same-origin'});
+      if (res.redirected || res.ok) {
+        loginSection.style.display='none';
+        appRoot.style.display='block';
+        cardRoot.classList.add('app-expanded');
+        loggedIn = true;
+        const username = loginForm.elements['username'].value;
+        greetingEl.textContent = `Hello, ${username}`;
+        enableGlobalDrag();
+        setupEventSource();
+      } else {
+        const txt = await res.text();
+        showError('Login failed — check credentials');
+        console.error('login failed', txt);
+      }
+    } catch (err) {
+      showError('Network error during login');
+      console.error(err);
+    }
   });
 }
+
+function showError(msg){ if (errorMessage) { errorMessage.style.display='block'; errorMessage.textContent=msg }}
+
+// ---------- GLOBAL DRAG & DROP ----------
+function enableGlobalDrag(){
+  ['dragenter','dragover','dragleave','drop','dragend'].forEach(ev => 
+    document.addEventListener(ev, handleGlobalDrag)
+  );
+}
+
+function handleGlobalDrag(e) {
+  if (!loggedIn) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  // Handle different event types
+  switch(e.type) {
+    case 'dragenter':
+    case 'dragover':
+      dragDepth++;
+      globalOverlay.style.display = 'flex';
+      dropCover.classList.add('drag');
+      break;
+      
+    case 'dragleave':
+      dragDepth--;
+      if (dragDepth <= 0) {
+        resetDragState();
+      }
+      break;
+      
+    case 'drop':
+      const files = e.dataTransfer.files;
+      if (files && files.length) {
+        uploadFiles(files);
+      }
+      resetDragState();
+      break;
+      
+    case 'dragend':
+      resetDragState();
+      break;
+  }
+}
+
+function resetDragState() {
+  dragDepth = 0;
+  globalOverlay.style.display = 'none';
+  dropCover.classList.remove('drag');
+}
+
+// clicking cover opens picker
+if (dropCover) dropCover.addEventListener('click', () => fileInput.click());
+
+// ---------- FILE UPLOAD ----------
+if (fileInput) fileInput.addEventListener('change', async () => { 
+  if (fileInput.files.length) await uploadFiles(fileInput.files); 
+  fileInput.value = ''; 
+});
+
+if (selectFileBtn) selectFileBtn.addEventListener('click', () => fileInput.click());
+
+async function uploadFiles(files){
+  const arr = Array.from(files);
+  for (const f of arr){
+    if (f.size > 15*1024*1024){alert(`${f.name} is larger than 15MB`);continue}
+    const fd = new FormData(); fd.append('file', f);
+    try{
+      const res = await fetch('/upload', {method:'POST',body:fd,credentials:'same-origin'});
+      if (!res.ok){const err = await res.json().catch(()=>({}));throw new Error(err.error||'Upload failed')}
+      const data = await res.json();
+      addFileToList(data);
+      highlightNewFile(data.filename);
+    }catch(err){console.error(err);alert('Upload failed: '+err.message)}
+  }
+}
+
+// ---------- FILE LIST ----------
+function addFileToList(data){
+  const id = `file-${data.filename}`;
+  const existing = document.getElementById(id);
+  if (existing){ existing.querySelector('.file-sub .date').textContent = data.upload_time; return }
+  const li = document.createElement('li'); li.id = id; li.className='file-row';
+  li.innerHTML = `
+    <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,#eef2ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb">F</div>
+    <div class="file-meta">
+      <div class="file-name">${escapeHtml(data.filename)}</div>
+      <div class="file-sub"><div class="date">${data.upload_time}</div><div>${(data.size?formatSize(data.size):'—')}</div></div>
+    </div>
+    <div class="file-actions">
+      <div class="menu-trigger" data-filename="${escapeHtml(data.filename)}">⋮</div>
+    </div>
+  `;
+  fileList.prepend(li);
+  updateStats();
+}
+
+function removeFileFromList(filename){ const el = document.getElementById(`file-${filename}`); if (el) el.remove(); updateStats(); }
+function highlightNewFile(filename){ const el = document.getElementById(`file-${filename}`); if (!el) return; el.classList.add('new-highlight'); setTimeout(()=>el.classList.remove('new-highlight'),2400); }
+function updateStats(){ uploadStats.textContent = fileList.children.length + ' files' }
+function formatSize(n){ if(!n) return ''; const kb = n/1024; if(kb<1024) return Math.round(kb)+' KB'; return (kb/1024).toFixed(1)+' MB' }
+function escapeHtml(s){ return String(s).replace(/[&"'<>]/g,function(c){return{'&':'&amp;','"':'&quot;','\'':'&#39;','<':'&lt;','>':'&gt;'}[c]}) }
+
+// ---------- FLOATING MENU ----------
+document.addEventListener('click', e => { 
+  if (!e.target.closest('.menu-trigger') && floatingMenu && !floatingMenu.contains(e.target)) { 
+    floatingMenu.style.display='none'; 
+    floatingMenu.setAttribute('aria-hidden','true'); 
+  } 
+});
+
+document.addEventListener('click', e => {
+  const trg = e.target.closest('.menu-trigger');
+  if (!trg) return;
+  const filename = trg.dataset.filename;
+  const rect = trg.getBoundingClientRect();
+  floatingMenu.style.left = (rect.right - 10) + 'px';
+  floatingMenu.style.top = (rect.bottom + 8) + 'px';
+  floatingMenu.style.display = 'block';
+  floatingMenu.setAttribute('aria-hidden','false');
+  floatingMenu.innerHTML = `
+    <button id="fm-download">Download</button>
+    <button id="fm-delete">Delete</button>
+  `;
+  document.getElementById('fm-download').onclick = () => { window.location.href = '/uploads/' + encodeURIComponent(filename); };
+  document.getElementById('fm-delete').onclick = async () => {
+    if (!confirm('Delete "' + filename + '"?')) return;
+    try{
+      const res = await fetch('/delete/' + encodeURIComponent(filename), {method:'DELETE',credentials:'same-origin'});
+      const json = await res.json();
+      if (json.success) removeFileFromList(filename);
+      else alert('Delete error: ' + (json.error||'Unknown'));
+    }catch(err){console.error(err);alert('Network error while deleting')}
+    floatingMenu.style.display='none';
+  };
+  e.stopPropagation();
+});
+
+// ---------- SSE ----------
+function setupEventSource(){ if (eventSource) eventSource.close(); eventSource = new EventSource('/events'); eventSource.onmessage = e => { try{ const data = JSON.parse(e.data); if (data.type === 'init'){ fileList.innerHTML=''; data.files.forEach(f=>addFileToList(f)); updateStats(); } else if (data.type === 'file_added'){ addFileToList(data.file); highlightNewFile(data.file.filename); } else if (data.type === 'file_deleted'){ removeFileFromList(data.file.filename); } }catch(err){console.error('SSE parse',err)} }; eventSource.onerror = () => { console.error('SSE error'); eventSource.close(); } }
+
+// ---------- LOGOUT ----------
+if (logoutBtn) logoutBtn.addEventListener('click', ()=>{ if (eventSource) eventSource.close(); window.location.href='/logout'; });
+
+// optional initial fetch to populate list
+(async function(){ try{ const res = await fetch('/list'); if (res.ok){ const json = await res.json(); if (json.files) json.files.forEach(f=>addFileToList(f)); updateStats(); } }catch(e){} })();
