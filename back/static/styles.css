@@ -245,3 +245,16 @@ body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica
   gap: 12px;
   justify-content: center;
 }
+/* Ensure proper initial state */
+#app {
+    display: none;
+}
+
+#login-section {
+    display: block;
+}
+
+/* Fix for card expansion */
+.card.app-expanded {
+    transition: max-width 0.3s ease;
+}

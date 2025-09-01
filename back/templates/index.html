@@ -78,7 +78,7 @@
                     <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,#eef2ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb">F</div>
                     <div class="file-meta">
                       <div class="file-name">{{ file.filename }}</div>
-                      <div class="file-sub"><div class="date">{{ file.upload_time }}</div><div>{{ (file.size // 1024)|string }} KB</div></div>
+                      <div class="file-sub"><div class="date">{{ file.upload_time }}</div><div>{{ (file.size // 1024) }} KB</div></div>
                     </div>
                     <div class="file-actions">
                       <div class="menu-trigger" data-filename="{{ file.filename }}">⋮</div>

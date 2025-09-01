@@ -70,6 +70,10 @@ def get_db_connection():
 # Home route
 @app.route('/', methods=['GET'])
 def home():
+    # Clear session on page load to ensure fresh start
+    if 'logged_in' in session and not request.referrer:
+        session.clear()
+    
     files = get_file_list() if session.get('logged_in') else []
     return render_template('index.html', error=None, files=files,
                          user_name=session.get('username'), logged_in=session.get('logged_in', False))
@@ -131,7 +135,8 @@ def upload():
             upload_time = datetime.now().strftime("%d-%m-%Y")
             file_data = {
                 "filename": filename,
-                "upload_time": upload_time
+                "upload_time": upload_time,
+                "size": os.path.getsize(filepath)
             }
             add_event('file_added', file_data)
             return jsonify(file_data)

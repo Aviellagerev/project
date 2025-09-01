@@ -21,6 +21,22 @@ let eventSource = null;
 let loggedIn = false;
 let dragDepth = 0;
 let currentDeleteFilename = null;
+// Initialize page state on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if user is logged in based on the app display state
+    loggedIn = appRoot.style.display !== 'none';
+    
+    if (loggedIn) {
+        enableGlobalDrag();
+        setupEventSource();
+    } else {
+        resetDragState();
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    }
+});
 
 // ---------- LOGIN ----------
 if (loginForm) {
@@ -98,7 +114,6 @@ function handleGlobalDrag(e) {
       break;
   }
 }
-
 function resetDragState() {
   dragDepth = 0;
   globalOverlay.style.display = 'none';
