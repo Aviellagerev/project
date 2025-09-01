@@ -35,7 +35,7 @@ def get_file_list():
                     os.path.getmtime(filepath)
                 ).strftime('%Y-%m-%d')
                 files.append({
-                    'filename': filename, 
+                    'filename': filename,
                     'upload_time': upload_time,
                     'size': os.path.getsize(filepath)
                 })
@@ -66,47 +66,53 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 # Home route
 @app.route('/', methods=['GET'])
 def home():
-    files = get_file_list()
-    return render_template('index.html', error=None, files=files)
+    files = get_file_list() if session.get('logged_in') else []
+    return render_template('index.html', error=None, files=files,
+                         user_name=session.get('username'), logged_in=session.get('logged_in', False))
+
+# List files route (fallback for non-SSE clients)
+@app.route('/list', methods=['GET'])
+def list_files():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    return jsonify({'files': get_file_list()})
 
 # Login route
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form['username']
     password = request.form['password']
-    
     try:
         conn = get_db_connection()
         c = conn.cursor()
         c.execute(
-            'SELECT * FROM users WHERE username=? AND password=?', 
+            'SELECT * FROM users WHERE username=? AND password=?',
             (username, password)
         )
         result = c.fetchone()
         conn.close()
-        
         if result:
             session['logged_in'] = True
             session['username'] = username
             return redirect('/')
         else:
-            return render_template('index.html', error='Invalid credentials')
+            return render_template('index.html', error='Invalid credentials',
+                                 files=[], user_name=None, logged_in=False), 401
     except sqlite3.Error:
-        return render_template('index.html', error='Database error')
+        return render_template('index.html', error='Database error',
+                             files=[], user_name=None, logged_in=False), 500
 
 # Serve uploaded files for download
-@app.route('/uploads/<filename>')
+@app.route('/Uploads/<filename>')
 def download_file(filename):
     if not session.get('logged_in'):
         return "Unauthorized", 401
-    
-    # Security check to prevent directory traversal
     if '..' in filename or filename.startswith('/'):
         return "Invalid filename", 400
-        
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
 # File upload route
@@ -114,17 +120,12 @@ def download_file(filename):
 def upload():
     if not session.get('logged_in'):
         return "Unauthorized", 401
-    
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
-        
     file = request.files['file']
     if file and file.filename:
-        # Secure filename handling
         filename = os.path.basename(file.filename)
         filepath = os.path.join(UPLOAD_FOLDER, filename)
-        
-        # Save file efficiently in chunks to avoid memory issues
         try:
             file.save(filepath)
             upload_time = datetime.now().strftime("%d-%m-%Y")
@@ -132,14 +133,10 @@ def upload():
                 "filename": filename,
                 "upload_time": upload_time
             }
-            
-            # Notify clients about the new file
             add_event('file_added', file_data)
-            
             return jsonify(file_data)
         except IOError:
             return jsonify({'error': 'Failed to save file'}), 500
-            
     return jsonify({'error': 'Invalid file'}), 400
 
 # Delete file route
@@ -147,16 +144,12 @@ def upload():
 def delete_file(filename):
     if not session.get('logged_in'):
         return "Unauthorized", 401
-
-    # Security check
     if '..' in filename or filename.startswith('/'):
         return jsonify({"success": False, "error": "Invalid filename"}), 400
-
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
-            # Notify clients about the deleted file
             add_event('file_deleted', {'filename': filename})
             return jsonify({"success": True})
         except OSError:
@@ -164,28 +157,21 @@ def delete_file(filename):
     else:
         return jsonify({"success": False, "error": "File not found"}), 404
 
-# Server-Sent Events route for real-time updates (optimized)
+# Server-Sent Events route for real-time updates
 @app.route('/events')
 def events():
     if not session.get('logged_in'):
         return "Unauthorized", 401
-        
     def generate():
-        # Send initial file list
         files = get_file_list()
         yield f"data: {json.dumps({'type': 'init', 'files': files})}\n\n"
-        
-        # Keep connection open and send updates
         last_check = time.time()
         while True:
-            # Check for new events every 2 seconds (reduced frequency)
             time.sleep(2.0)
             current_events = get_events_since(last_check)
             last_check = time.time()
-            
             for event in current_events:
                 yield f"data: {json.dumps(event)}\n\n"
-    
     return Response(generate(), mimetype="text/event-stream")
 
 # Logout route
@@ -200,12 +186,10 @@ def health():
     return jsonify({"status": "ok", "timestamp": time.time()})
 
 if __name__ == '__main__':
-    # Use a more efficient WSGI server in production
-    # For development, use minimal settings
     app.run(
-        host='0.0.0.0', 
-        port=8000, 
-        debug=False,  # Disable debug mode for production
-        threaded=True,  # Handle requests in separate threads
-        processes=1  # Use only one process to save memory
+        host='0.0.0.0',
+        port=8000,
+        debug=False,
+        threaded=True,
+        processes=1
     )

@@ -10,7 +10,7 @@
   <div class="page">
     <div class="card" id="card-root">
       <!-- LOGIN (shown when not logged-in) -->
-      <section id="login-section">
+      <section id="login-section" style="{% if not logged_in %}display: block{% else %}display: none{% endif %}">
         <div class="login-container">
           <div class="login-header">
             <div class="logo">SF</div>
@@ -22,12 +22,12 @@
             <input type="password" name="password" placeholder="Password" required />
             <button type="submit">Sign in</button>
           </form>
-          <div id="error-message" class="error" style="display:none">{% if error %}{{ error }}{% endif %}</div>
+          <div id="error-message" class="error" style="display: {% if error %}block{% else %}none{% endif %}">{{ error or '' }}</div>
         </div>
       </section>
 
       <!-- APP (hidden until login succeeds) -->
-      <div id="app" style="display:none">
+      <div id="app" style="{% if logged_in %}display: block{% else %}display: none{% endif %}">
         <header class="header">
           <div class="brand">
             <div class="logo">SF</div>
@@ -39,7 +39,7 @@
           <div style="display:flex;align-items:center;gap:14px">
             <div class="realtime"><span style="width:9px;height:9px;background:#10b981;border-radius:50%;display:inline-block;margin-right:8px"></span>Live</div>
             <div id="logout-section" style="display:flex;align-items:center;gap:12px">
-              <div id="greeting" style="font-weight:600;color:#0f172a">{% if user_name %}Hello, {{ user_name }}{% endif %}</div>
+              <div id="greeting" style="font-weight:600;color:#0f172a">{{ 'Hello, ' + user_name if user_name else '' }}</div>
               <button id="logout-btn">Logout</button>
             </div>
           </div>
@@ -68,7 +68,7 @@
                 <h3 style="margin:0">Uploaded files</h3>
                 <div class="muted">Files uploaded by your team</div>
               </div>
-              <div id="upload-stats" class="muted">0 files</div>
+              <div id="upload-stats" class="muted">{{ files|length }} files</div>
             </div>
 
             <div id="files-list" class="files-list">
@@ -95,6 +95,18 @@
 
   <div id="floating-menu" aria-hidden="true"></div>
   <div id="global-drop-overlay" aria-hidden="true"><div class="overlay-card">Drop files to upload</div></div>
+  
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="delete-modal-title">Delete file?</h3>
+      <p>Are you sure you want to delete this file? This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="delete-cancel-btn" class="btn-secondary">Cancel</button>
+        <button id="delete-confirm-btn" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
 
   <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
