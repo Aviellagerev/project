@@ -21,6 +21,7 @@ let eventSource = null;
 let loggedIn = false;
 let dragDepth = 0;
 let currentDeleteFilename = null;
+
 // Initialize page state on load
 document.addEventListener('DOMContentLoaded', function() {
     // Check if user is logged in based on the app display state
@@ -69,7 +70,6 @@ if (loginForm) {
     }
   });
 }
-
 function showError(msg) {
   if (errorMessage) {
     errorMessage.style.display = 'block';
@@ -114,6 +114,7 @@ function handleGlobalDrag(e) {
       break;
   }
 }
+
 function resetDragState() {
   dragDepth = 0;
   globalOverlay.style.display = 'none';
@@ -123,12 +124,24 @@ function resetDragState() {
 if (dropCover) dropCover.addEventListener('click', () => fileInput.click());
 
 // ---------- FILE UPLOAD ----------
-if (fileInput) fileInput.addEventListener('change', async () => {
-  if (fileInput.files.length) await uploadFiles(fileInput.files);
-  fileInput.value = '';
-});
+// Fix for file input selection issue
+if (fileInput) {
+  fileInput.addEventListener('change', async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await uploadFiles(e.target.files);
+      // Reset the input to allow selecting the same file again
+      fileInput.value = '';
+    }
+  });
+}
 
-if (selectFileBtn) selectFileBtn.addEventListener('click', () => fileInput.click());
+if (selectFileBtn) {
+  selectFileBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fileInput.click();
+  });
+}
 
 async function uploadFiles(files) {
   const arr = Array.from(files);
@@ -233,7 +246,9 @@ document.addEventListener('click', e => {
     <button id="fm-download">Download</button>
     <button id="fm-delete">Delete</button>
   `;
- document.getElementById('fm-download').onclick = () => {
+  
+  // Fix download button to download without redirecting
+  document.getElementById('fm-download').onclick = () => {
     // Create a hidden anchor element to trigger download
     const a = document.createElement('a');
     a.href = '/Uploads/' + encodeURIComponent(filename);
@@ -241,7 +256,9 @@ document.addEventListener('click', e => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-};
+    floatingMenu.style.display = 'none';
+  };
+  
   document.getElementById('fm-delete').onclick = () => {
     currentDeleteFilename = filename;
     deleteModalTitle.textContent = `Delete "${filename}"?`;
