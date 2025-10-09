@@ -1,157 +1,190 @@
 from flask import Flask, render_template, request, redirect, session, jsonify, send_from_directory, url_for, Response
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
 import json
 import time
 import threading
 from datetime import datetime
+from functools import wraps
 
-# Configuration
+# --- Configuration ---
 UPLOAD_FOLDER = 'shared_folder'
-MAX_EVENTS = 50  # Limit event history to prevent memory bloat
+MAX_EVENTS = 50
 DB_PATH = 'users.db'
 
-# Initialize Flask app
+# --- Initialize Flask App ---
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # More secure random key
+app.secret_key = os.urandom(24)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit uploads to 16MB
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Simple in-memory event queue (for low number of concurrent users)
+# --- Event Queue for Real-time Updates ---
 event_queue = []
 event_lock = threading.Lock()
 
-def get_file_list():
-    """Efficiently get list of files with metadata"""
-    files = []
-    try:
-        for filename in os.listdir(UPLOAD_FOLDER):
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-            if os.path.isfile(filepath):
-                upload_time = datetime.fromtimestamp(
-                    os.path.getmtime(filepath)
-                ).strftime('%Y-%m-%d')
-                files.append({
-                    'filename': filename,
-                    'upload_time': upload_time,
-                    'size': os.path.getsize(filepath)
-                })
-    except OSError:
-        pass  # Handle directory access errors silently
-    return files
+# --- Permission Decorators ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            # For API calls, return JSON error. For pages, redirect.
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
 
-def add_event(event_type, file_data=None):
-    """Add an event to the queue, limiting size"""
-    with event_lock:
-        event = {
-            'type': event_type,
-            'file': file_data,
-            'timestamp': time.time()
-        }
-        event_queue.append(event)
-        # Keep only the most recent events
-        if len(event_queue) > MAX_EVENTS:
-            event_queue.pop(0)
+def permission_required(required_level):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_permissions = session.get('permissions', '')
+            # Define permission hierarchy
+            allowed = {
+                'read': ['read', 'write', 'delete', 'admin'],
+                'write': ['write', 'delete', 'admin'],
+                'delete': ['delete', 'admin'],
+                'admin': ['admin']
+            }
+            if user_permissions in allowed.get(required_level, []):
+                return f(*args, **kwargs)
+            return jsonify({'error': f"'{required_level}' permission required."}), 403
+        return decorated_function
+    return decorator
 
-def get_events_since(timestamp):
-    """Get events since a specific timestamp"""
-    with event_lock:
-        return [e for e in event_queue if e['timestamp'] > timestamp]
-
-# Database connection helper
+# --- Helper Functions ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-# Home route
+def get_file_list():
+    files = []
+    try:
+        for filename in os.listdir(UPLOAD_FOLDER):
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            if os.path.isfile(filepath):
+                files.append({
+                    'filename': filename,
+                    'upload_time': datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%Y-%m-%d'),
+                    'size': os.path.getsize(filepath)
+                })
+    except OSError:
+        pass
+    # Sort files by modification time, newest first
+    return sorted(files, key=lambda x: datetime.strptime(x['upload_time'], '%Y-%m-%d'), reverse=True)
+
+
+def add_event(event_type, file_data=None):
+    with event_lock:
+        event = {'type': event_type, 'file': file_data, 'timestamp': time.time()}
+        event_queue.append(event)
+        if len(event_queue) > MAX_EVENTS:
+            event_queue.pop(0)
+
+def get_events_since(timestamp):
+    with event_lock:
+        return [e for e in event_queue if e['timestamp'] > timestamp]
+
+# --- Main Route ---
 @app.route('/', methods=['GET'])
 def home():
-    # Clear session on page load to ensure fresh start
-    if 'logged_in' in session and not request.referrer:
-        session.clear()
-    
     files = get_file_list() if session.get('logged_in') else []
-    return render_template('index.html', error=None, files=files,
-                         user_name=session.get('username'), logged_in=session.get('logged_in', False))
+    return render_template('index.html', 
+                         error=session.pop('error', None), 
+                         success=session.pop('success', None),
+                         files=files,
+                         user_name=session.get('username'), 
+                         logged_in=session.get('logged_in', False),
+                         permissions=session.get('permissions', ''))
 
-# List files route (fallback for non-SSE clients)
-@app.route('/list', methods=['GET'])
-def list_files():
-    if not session.get('logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
-    return jsonify({'files': get_file_list()})
+# --- Authentication Routes ---
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form['username']
+    password = request.form['password']
+    if not username or not password:
+        session['error'] = 'Username and password are required.'
+        return redirect(url_for('home'))
 
-# Login route
+    hashed_password = generate_password_hash(password)
+    try:
+        conn = get_db_connection()
+        # New users get 'read' permission by default
+        conn.execute('INSERT INTO users (username, password_hash, permissions) VALUES (?, ?, ?)',
+                     (username, hashed_password, 'read'))
+        conn.commit()
+        session['success'] = 'Registration successful! Please log in.'
+    except sqlite3.IntegrityError:
+        session['error'] = 'Username already exists.'
+    except sqlite3.Error as e:
+        session['error'] = f'Database error: {e}'
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('home'))
+
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form['username']
     password = request.form['password']
     try:
         conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            'SELECT * FROM users WHERE username=? AND password=?',
-            (username, password)
-        )
-        result = c.fetchone()
+        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         conn.close()
-        if result:
+        # Check if user exists and password hash matches
+        if user and check_password_hash(user['password_hash'], password):
             session['logged_in'] = True
-            session['username'] = username
-            return redirect('/')
+            session['username'] = user['username']
+            session['permissions'] = user['permissions']
+            return redirect(url_for('home'))
         else:
-            return render_template('index.html', error='Invalid credentials',
-                                 files=[], user_name=None, logged_in=False), 401
+            session['error'] = 'Invalid username or password.'
+            return redirect(url_for('home'))
     except sqlite3.Error:
-        return render_template('index.html', error='Database error',
-                             files=[], user_name=None, logged_in=False), 500
+        session['error'] = 'Database error.'
+        return redirect(url_for('home'))
 
-# Serve uploaded files for download
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
+# --- File Management Routes (with permission checks) ---
 @app.route('/Uploads/<filename>')
+@login_required
+@permission_required('read')
 def download_file(filename):
-    if not session.get('logged_in'):
-        return "Unauthorized", 401
-    if '..' in filename or filename.startswith('/'):
-        return "Invalid filename", 400
+    if '..' in filename or filename.startswith('/'): return "Invalid filename", 400
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
-# File upload route
 @app.route('/upload', methods=['POST'])
+@login_required
+@permission_required('write')
 def upload():
-    if not session.get('logged_in'):
-        return "Unauthorized", 401
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+    if 'file' not in request.files: return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
-    if file and file.filename:
+    if file.filename == '': return jsonify({'error': 'No selected file'}), 400
+    if file:
         filename = os.path.basename(file.filename)
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         try:
             file.save(filepath)
-            upload_time = datetime.now().strftime("%d-%m-%Y")
-            file_data = {
-                "filename": filename,
-                "upload_time": upload_time,
-                "size": os.path.getsize(filepath)
-            }
+            file_data = {"filename": filename, "upload_time": datetime.now().strftime("%Y-%m-%d"), "size": os.path.getsize(filepath)}
             add_event('file_added', file_data)
-            return jsonify(file_data)
+            return jsonify(file_data), 201
         except IOError:
             return jsonify({'error': 'Failed to save file'}), 500
-    return jsonify({'error': 'Invalid file'}), 400
+    return jsonify({'error': 'Invalid file type'}), 400
 
-# Delete file route
 @app.route('/delete/<filename>', methods=['DELETE'])
+@login_required
+@permission_required('delete')
 def delete_file(filename):
-    if not session.get('logged_in'):
-        return "Unauthorized", 401
-    if '..' in filename or filename.startswith('/'):
-        return jsonify({"success": False, "error": "Invalid filename"}), 400
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if '..' in filename or filename.startswith('/'): return jsonify({"success": False, "error": "Invalid filename"}), 400
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
@@ -162,39 +195,61 @@ def delete_file(filename):
     else:
         return jsonify({"success": False, "error": "File not found"}), 404
 
-# Server-Sent Events route for real-time updates
+# --- Admin Routes ---
+@app.route('/admin')
+@login_required
+@permission_required('admin')
+def admin_panel():
+    return render_template('admin.html', user_name=session.get('username'))
+
+@app.route('/api/users')
+@login_required
+@permission_required('admin')
+def get_users():
+    conn = get_db_connection()
+    users = conn.execute('SELECT id, username, permissions FROM users').fetchall()
+    conn.close()
+    return jsonify([dict(user) for user in users])
+
+@app.route('/api/update_permission', methods=['POST'])
+@login_required
+@permission_required('admin')
+def update_permission():
+    data = request.get_json()
+    user_id = data.get('id')
+    new_permission = data.get('permission')
+    valid_permissions = ['read', 'write', 'delete', 'admin']
+    if not user_id or new_permission not in valid_permissions:
+        return jsonify({'success': False, 'error': 'Invalid data provided'}), 400
+    try:
+        conn = get_db_connection()
+        # Prevent admin from changing their own permissions
+        user_to_edit = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+        if user_to_edit and user_to_edit['username'] == session.get('username'):
+             return jsonify({'success': False, 'error': "Cannot change your own permissions."}), 403
+        conn.execute('UPDATE users SET permissions = ? WHERE id = ?', (new_permission, user_id))
+        conn.commit()
+    except sqlite3.Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+    return jsonify({'success': True})
+
+# --- SSE Route for Real-time Updates ---
 @app.route('/events')
+@login_required
 def events():
-    if not session.get('logged_in'):
-        return "Unauthorized", 401
     def generate():
         files = get_file_list()
         yield f"data: {json.dumps({'type': 'init', 'files': files})}\n\n"
         last_check = time.time()
         while True:
-            time.sleep(2.0)
+            time.sleep(1)
             current_events = get_events_since(last_check)
             last_check = time.time()
             for event in current_events:
                 yield f"data: {json.dumps(event)}\n\n"
     return Response(generate(), mimetype="text/event-stream")
 
-# Logout route
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('home'))
-
-# Health check endpoint for monitoring
-@app.route('/health')
-def health():
-    return jsonify({"status": "ok", "timestamp": time.time()})
-
 if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port=8000,
-        debug=False,
-        threaded=True,
-        processes=1
-    )
+    app.run(host='0.0.0.0', port=8000, debug=True)

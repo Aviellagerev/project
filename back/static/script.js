@@ -1,473 +1,285 @@
-const loginForm = document.getElementById('login-form');
-const errorMessage = document.getElementById('error-message');
-const loginSection = document.getElementById('login-section');
-const appRoot = document.getElementById('app');
-const greetingEl = document.getElementById('greeting');
-const logoutBtn = document.getElementById('logout-btn');
-const dropCover = document.getElementById('drop-cover');
-const fileList = document.getElementById('file-list');
-const fileInput = document.getElementById('file-input');
-const selectFileBtn = document.getElementById('select-file-btn');
-const floatingMenu = document.getElementById('floating-menu');
-const globalOverlay = document.getElementById('global-drop-overlay');
-const uploadStats = document.getElementById('upload-stats');
-const cardRoot = document.getElementById('card-root');
-const deleteModal = document.getElementById('delete-modal');
-const deleteModalTitle = document.getElementById('delete-modal-title');
-const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
-const deleteCancelBtn = document.getElementById('delete-cancel-btn');
-
-let eventSource = null;
-let loggedIn = false;
-let dragDepth = 0;
-let currentDeleteFilename = null;
-
-// Initialize page state on load
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is logged in based on the app display state
-    loggedIn = appRoot.style.display !== 'none';
+    // --- General Elements ---
+    const appRoot = document.getElementById('app');
+    const fileList = document.getElementById('file-list');
+    const floatingMenu = document.getElementById('floating-menu');
+    const globalOverlay = document.getElementById('global-drop-overlay');
+    const uploadStats = document.getElementById('upload-stats');
+    const cardRoot = document.getElementById('card-root');
+
+    // --- Auth Form Elements ---
+    const authForm = document.getElementById('auth-form');
+    const formTitle = document.getElementById('form-title');
+    const formSubtitle = document.getElementById('form-subtitle');
+    const submitBtn = document.getElementById('submit-btn');
+    const registerToggle = document.getElementById('register-toggle');
+    const loginToggle = document.getElementById('login-toggle');
+    const registerPrompt = document.getElementById('register-prompt');
+    const loginPrompt = document.getElementById('login-prompt');
     
+    // --- Upload Elements ---
+    const dropCover = document.getElementById('drop-cover');
+    const fileInput = document.getElementById('file-input');
+    const selectFileBtn = document.getElementById('select-file-btn');
+
+    // --- Delete Modal Elements ---
+    const deleteModal = document.getElementById('delete-modal');
+    const deleteModalTitle = document.getElementById('delete-modal-title');
+    const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
+    const deleteCancelBtn = document.getElementById('delete-cancel-btn');
+
+    let eventSource = null;
+    let dragDepth = 0;
+    let currentDeleteFilename = null;
+
+    // --- Initial State Check ---
+    const loggedIn = appRoot && appRoot.style.display !== 'none';
     if (loggedIn) {
-        enableGlobalDrag();
+        const userPermissions = floatingMenu.dataset.permissions;
+        if (userPermissions && ['write', 'delete', 'admin'].includes(userPermissions)) {
+            enableGlobalDrag();
+        }
         setupEventSource();
-    } else {
-        resetDragState();
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
+        if (cardRoot) cardRoot.classList.add('app-expanded');
+    }
+
+    // --- Auth Form Switching Logic ---
+    if (registerToggle) {
+        registerToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            authForm.action = '/register';
+            formTitle.textContent = 'Create Account';
+            formSubtitle.textContent = 'Join the shared folder';
+            submitBtn.textContent = 'Register';
+            registerPrompt.style.display = 'none';
+            loginPrompt.style.display = 'inline';
+        });
+    }
+
+    if (loginToggle) {
+        loginToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            authForm.action = '/login';
+            formTitle.textContent = 'Welcome back';
+            formSubtitle.textContent = 'Sign in to access your shared folder';
+            submitBtn.textContent = 'Sign in';
+            registerPrompt.style.display = 'inline';
+            loginPrompt.style.display = 'none';
+        });
+    }
+
+    // --- Global Drag & Drop ---
+    function enableGlobalDrag() {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev =>
+            document.body.addEventListener(ev, handleGlobalDrag)
+        );
+    }
+
+    function handleGlobalDrag(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        switch (e.type) {
+            case 'dragenter': dragDepth++; if (globalOverlay) globalOverlay.style.display = 'flex'; break;
+            case 'dragover': break;
+            case 'dragleave': dragDepth--; if (dragDepth <= 0) resetDragState(); break;
+            case 'drop':
+                const files = e.dataTransfer.files;
+                if (files && files.length) uploadFiles(files);
+                resetDragState();
+                break;
         }
     }
-});
 
-// ---------- LOGIN ----------
-if (loginForm) {
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(loginForm);
-    try {
-      const res = await fetch('/login', {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-      });
-      if (res.redirected) {
-        loginSection.style.display = 'none';
-        appRoot.style.display = 'block';
-        cardRoot.classList.add('app-expanded');
-        loggedIn = true;
-        const username = loginForm.elements['username'].value;
-        greetingEl.textContent = `Hello, ${username}`;
-        enableGlobalDrag();
-        setupEventSource();
-      } else {
-        const txt = await res.text();
-        showError('Login failed — check credentials');
-        console.error('login failed', txt);
-      }
-    } catch (err) {
-      showError('Network error during login');
-      console.error('Login error:', err);
+    function resetDragState() {
+        dragDepth = 0;
+        if (globalOverlay) globalOverlay.style.display = 'none';
     }
-  });
-}
-function showError(msg) {
-  if (errorMessage) {
-    errorMessage.style.display = 'block';
-    errorMessage.textContent = msg;
-  }
-}
 
-// ---------- GLOBAL DRAG & DROP ----------
-function enableGlobalDrag() {
-  ['dragenter', 'dragover', 'dragleave', 'drop', 'dragend'].forEach(ev =>
-    document.addEventListener(ev, handleGlobalDrag)
-  );
-}
-
-function handleGlobalDrag(e) {
-  if (!loggedIn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  
-  switch (e.type) {
-    case 'dragenter':
-      dragDepth++;
-      globalOverlay.style.display = 'flex';
-      dropCover.classList.add('drag');
-      break;
-    case 'dragover':
-      // Keep showing overlay during dragover
-      break;
-    case 'dragleave':
-      dragDepth--;
-      if (dragDepth <= 0) {
-        resetDragState();
-      }
-      break;
-    case 'drop':
-      const files = e.dataTransfer.files;
-      if (files && files.length) uploadFiles(files);
-      resetDragState();
-      break;
-    case 'dragend':
-      resetDragState();
-      break;
-  }
-}
-
-function resetDragState() {
-  dragDepth = 0;
-  globalOverlay.style.display = 'none';
-  dropCover.classList.remove('drag');
-}
-
-if (dropCover) dropCover.addEventListener('click', () => fileInput.click());
-
-// ---------- FILE UPLOAD ----------
-// Fix for file input selection issue
-if (fileInput) {
-  fileInput.addEventListener('change', async (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      await uploadFiles(e.target.files);
-      // Reset the input to allow selecting the same file again
-      fileInput.value = '';
+    // --- File Upload ---
+    if (dropCover) dropCover.addEventListener('click', () => fileInput && fileInput.click());
+    if (selectFileBtn) selectFileBtn.addEventListener('click', () => fileInput && fileInput.click());
+    if (fileInput) {
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length) {
+                uploadFiles(e.target.files);
+                fileInput.value = '';
+            }
+        });
     }
-  });
-}
 
-if (selectFileBtn) {
-  selectFileBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    fileInput.click();
-  });
-}
-
-async function uploadFiles(files) {
-  const arr = Array.from(files);
-  for (const f of arr) {
-    if (f.size > 15 * 1024 * 1024) {
-      alert(`${f.name} is larger than 15MB`);
-      continue;
+    async function uploadFiles(files) {
+        for (const f of files) {
+            if (f.size > 16 * 1024 * 1024) {
+                alert(`${f.name} is too large (max 16MB).`);
+                continue;
+            }
+            const fd = new FormData();
+            fd.append('file', f);
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+                    throw new Error(err.error);
+                }
+            } catch (err) {
+                console.error('Upload error:', err);
+                alert('Upload failed: ' + err.message);
+            }
+        }
     }
-    const fd = new FormData();
-    fd.append('file', f);
-    try {
-      const res = await fetch('/upload', {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin'
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Upload failed');
-      }
-      const data = await res.json();
-      addFileToList(data);
-      highlightNewFile(data.filename);
-    } catch (err) {
-      console.error('Upload error:', err);
-      alert('Upload failed: ' + err.message);
-    }
-  }
-}
 
-// ---------- FILE LIST ----------
-function addFileToList(data) {
-  const id = `file-${data.filename}`;
-  const existing = document.getElementById(id);
-  if (existing) {
-    existing.querySelector('.file-sub .date').textContent = data.upload_time;
-    return;
-  }
-  const li = document.createElement('li');
-  li.id = id;
-  li.className = 'file-row';
-  li.innerHTML = `
-    <div style="width:54px;height:54px;display:flex;align-items:center;justify-content:center">
-      ${getFileIconHtml(data.filename)}
-    </div>
-    <div class="file-meta">
-      <div class="file-name">${escapeHtml(data.filename)}</div>
-      <div class="file-sub"><div class="date">${data.upload_time}</div><div>${data.size ? formatSize(data.size) : '—'}</div></div>
-    </div>
-    <div class="file-actions">
-      <div class="menu-trigger" data-filename="${escapeHtml(data.filename)}">⋮</div>
-    </div>
-  `;
-  fileList.prepend(li);
-  updateStats();
-}
-
-function removeFileFromList(filename) {
-  const el = document.getElementById(`file-${filename}`);
-  if (el) el.remove();
-  updateStats();
-}
-
-function highlightNewFile(filename) {
-  const el = document.getElementById(`file-${filename}`);
-  if (!el) return;
-  el.classList.add('new-highlight');
-  setTimeout(() => el.classList.remove('new-highlight'), 2400);
-}
-
-function updateStats() {
-  uploadStats.textContent = fileList.children.length + ' files';
-}
-
-function formatSize(n) {
-  if (!n) return '';
-  const kb = n / 1024;
-  if (kb < 1024) return Math.round(kb) + ' KB';
-  return (kb / 1024).toFixed(1) + ' MB';
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&"'<>]/g, c => ({'&': '&amp;', '"': '&quot;', '\'': '&#39;', '<': '&lt;', '>': '&gt;'}[c]));
-}
-
-function getFileIconHtml(filename) {
-  const ext = filename.split('.').pop().toLowerCase();
-  if (['pdf'].includes(ext)) {
-    return `<i class="fa-solid fa-file-pdf" style="font-size:28px;color:#dc2626"></i>`;
-  } else if (['doc', 'docx'].includes(ext)) {
-    return `<i class="fa-solid fa-file-word" style="font-size:28px;color:#2563eb"></i>`;
-  } else if (['xls', 'xlsx'].includes(ext)) {
-    return `<i class="fa-solid fa-file-excel" style="font-size:28px;color:#16a34a"></i>`;
-  } else if (['png', 'jpg', 'jpeg'].includes(ext)) {
-    return `<i class="fa-solid fa-file-image" style="font-size:28px;color:#ca8a04"></i>`;
-  } else if (['zip', 'rar'].includes(ext)) {
-    return `<i class="fa-solid fa-file-archive" style="font-size:28px;color:#6b7280"></i>`;
-  } else {
-    return `<i class="fa-solid fa-file" style="font-size:28px;color:#4b5563"></i>`;
-  }
-}
-
-
-// ---------- FLOATING MENU ----------
-document.addEventListener('click', e => {
-  if (!e.target.closest('.menu-trigger') && floatingMenu && !floatingMenu.contains(e.target)) {
-    floatingMenu.style.display = 'none';
-    floatingMenu.setAttribute('aria-hidden', 'true');
-  }
-});
-
-document.addEventListener('click', e => {
-  const trg = e.target.closest('.menu-trigger');
-  if (!trg) return;
-  const filename = trg.dataset.filename;
-  const rect = trg.getBoundingClientRect();
-  floatingMenu.style.left = (rect.right - 10) + 'px';
-  floatingMenu.style.top = (rect.bottom + 8) + 'px';
-  floatingMenu.style.display = 'block';
-  floatingMenu.setAttribute('aria-hidden', 'false');
-  floatingMenu.innerHTML = `
-    <button id="fm-download">Download</button>
-    <button id="fm-delete">Delete</button>
-  `;
-  
-  // Fix download button to download without redirecting
-  document.getElementById('fm-download').onclick = () => {
-    // Create a hidden anchor element to trigger download
-    const a = document.createElement('a');
-    a.href = '/Uploads/' + encodeURIComponent(filename);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    floatingMenu.style.display = 'none';
-  };
-  
-  document.getElementById('fm-delete').onclick = () => {
-    currentDeleteFilename = filename;
-    deleteModalTitle.textContent = `Delete "${filename}"?`;
-    deleteModal.style.display = 'flex';
-    floatingMenu.style.display = 'none';
-  };
-  e.stopPropagation();
-});
-
-// ---------- DELETE MODAL ----------
-if (deleteCancelBtn) {
-  deleteCancelBtn.addEventListener('click', () => {
-    deleteModal.style.display = 'none';
-    currentDeleteFilename = null;
-  });
-}
-
-if (deleteConfirmBtn) {
-  deleteConfirmBtn.addEventListener('click', async () => {
-    if (!currentDeleteFilename) return;
-    try {
-      const res = await fetch('/delete/' + encodeURIComponent(currentDeleteFilename), {
-        method: 'DELETE',
-        credentials: 'same-origin'
-      });
-      const json = await res.json();
-      if (json.success) {
-        removeFileFromList(currentDeleteFilename);
-      } else {
-        alert('Delete error: ' + (json.error || 'Unknown'));
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
-      alert('Network error while deleting');
-    }
-    deleteModal.style.display = 'none';
-    currentDeleteFilename = null;
-  });
-}
-
-// Close modal on overlay click
-if (deleteModal) {
-  deleteModal.addEventListener('click', (e) => {
-    if (e.target === deleteModal) {
-      deleteModal.style.display = 'none';
-      currentDeleteFilename = null;
-    }
-  });
-}
-
-// ---------- SSE ----------
-function setupEventSource() {
-  if (eventSource) eventSource.close();
-  eventSource = new EventSource('/events', { withCredentials: true });
-  eventSource.onmessage = e => {
-    try {
-      const data = JSON.parse(e.data);
-      if (data.type === 'init') {
-        fileList.innerHTML = '';
-        data.files.forEach(f => addFileToList(f));
+    // --- File List & UI Rendering ---
+    function addFileToList(file) {
+        const id = `file-${file.filename}`;
+        if (document.getElementById(id)) return;
+        const li = document.createElement('li');
+        li.id = id;
+        li.className = 'file-row';
+        li.innerHTML = `
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center">${getFileIconHtml(file.filename)}</div>
+            <div class="file-meta">
+                <div class="file-name">${escapeHtml(file.filename)}</div>
+                <div class="file-sub"><div class="date">${file.upload_time}</div><div>${formatSize(file.size)}</div></div>
+            </div>
+            <div class="file-actions"><div class="menu-trigger" data-filename="${escapeHtml(file.filename)}">⋮</div></div>
+        `;
+        if (fileList) fileList.prepend(li);
         updateStats();
-      } else if (data.type === 'file_added') {
-        addFileToList(data.file);
-        highlightNewFile(data.file.filename);
-      } else if (data.type === 'file_deleted') {
-        removeFileFromList(data.file.filename);
-      }
-    } catch (err) {
-      console.error('SSE parse error:', err);
     }
-  };
-  eventSource.onerror = () => {
-    console.error('SSE connection error');
-    eventSource.close();
-  };
-}
 
-// ---------- LOGOUT ----------
-if (logoutBtn) logoutBtn.addEventListener('click', () => {
-  if (eventSource) eventSource.close();
-  window.location.href = '/logout';
-});
-// ... (previous code remains the same until the floating menu section) ...
-
-// ---------- FLOATING MENU ----------
-document.addEventListener('click', e => {
-  if (!e.target.closest('.menu-trigger') && floatingMenu && !floatingMenu.contains(e.target)) {
-    floatingMenu.style.display = 'none';
-    floatingMenu.setAttribute('aria-hidden', 'true');
-  }
-});
-
-document.addEventListener('click', e => {
-  const trg = e.target.closest('.menu-trigger');
-  if (!trg) return;
-  const filename = trg.dataset.filename;
-  const rect = trg.getBoundingClientRect();
-  
-  // Check if mobile device
-  const isMobile = window.innerWidth <= 768;
-  
-  if (isMobile) {
-    // Position at bottom of screen for mobile
-    floatingMenu.style.left = '50%';
-    floatingMenu.style.transform = 'translateX(-50%)';
-    floatingMenu.style.bottom = '20px';
-    floatingMenu.style.top = 'auto';
-  } else {
-    // Desktop positioning
-    floatingMenu.style.left = (rect.right - 10) + 'px';
-    floatingMenu.style.top = (rect.bottom + 8) + 'px';
-    floatingMenu.style.bottom = 'auto';
-    floatingMenu.style.transform = 'none';
-  }
-  
-  floatingMenu.style.display = 'block';
-  floatingMenu.setAttribute('aria-hidden', 'false');
-  floatingMenu.innerHTML = `
-    <button id="fm-download">Download</button>
-    <button id="fm-delete">Delete</button>
-  `;
-  
-  // Fix download button to download without redirecting
-  document.getElementById('fm-download').onclick = () => {
-    // Create a hidden anchor element to trigger download
-    const a = document.createElement('a');
-    a.href = '/Uploads/' + encodeURIComponent(filename);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    floatingMenu.style.display = 'none';
-  };
-  
-  document.getElementById('fm-delete').onclick = () => {
-    currentDeleteFilename = filename;
-    deleteModalTitle.textContent = `Delete "${filename}"?`;
-    deleteModal.style.display = 'flex';
-    floatingMenu.style.display = 'none';
-  };
-  e.stopPropagation();
-});
-
-// ... (rest of the code remains the same) ...
-
-// ---------- MOBILE-SPECIFIC ENHANCEMENTS ----------
-// Detect touch device
-function isTouchDevice() {
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
-}
-
-// Add touch feedback for mobile
-if (isTouchDevice()) {
-  document.addEventListener('touchstart', function() {}, {passive: true});
-  
-  // Add active class to buttons on touch
-  const buttons = document.querySelectorAll('button, .menu-trigger, .file-row');
-  buttons.forEach(btn => {
-    btn.addEventListener('touchstart', function() {
-      this.classList.add('active');
-    });
+    function removeFileFromList(filename) {
+        const el = document.getElementById(`file-${filename}`);
+        if (el) el.remove();
+        updateStats();
+    }
     
-    btn.addEventListener('touchend', function() {
-      this.classList.remove('active');
-    });
-  });
-}
+    function highlightNewFile(filename) {
+        const el = document.getElementById(`file-${filename}`);
+        if (el) {
+            el.classList.add('new-highlight');
+            setTimeout(() => el.classList.remove('new-highlight'), 2300);
+        }
+    }
 
-// Handle mobile browser navigation
-window.addEventListener('popstate', function() {
-  if (loggedIn) {
-    resetDragState();
-  }
+    function updateStats() {
+        if (uploadStats) uploadStats.textContent = (fileList ? fileList.children.length : 0) + ' files';
+    }
+
+    function getFileIconHtml(filename) {
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        if (['pdf'].includes(ext)) return `<i class="fa-solid fa-file-pdf" style="font-size:20px;color:#dc2626"></i>`;
+        if (['doc','docx'].includes(ext)) return `<i class="fa-solid fa-file-word" style="font-size:20px;color:#2563eb"></i>`;
+        if (['xls','xlsx'].includes(ext)) return `<i class="fa-solid fa-file-excel" style="font-size:20px;color:#16a34a"></i>`;
+        if (['png','jpg','jpeg','gif'].includes(ext)) return `<i class="fa-solid fa-file-image" style="font-size:20px;color:#ca8a04"></i>`;
+        if (['zip','rar','7z'].includes(ext)) return `<i class="fa-solid fa-file-archive" style="font-size:20px;color:#6b7280"></i>`;
+        return `<i class="fa-solid fa-file" style="font-size:20px;color:#4b5563"></i>`;
+    }
+
+    function formatSize(bytes) {
+        if (!bytes) return '0 KB';
+        const kb = bytes / 1024;
+        return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    // --- Floating Menu ---
+    document.body.addEventListener('click', e => {
+        const trigger = e.target.closest('.menu-trigger');
+        if (trigger) {
+            e.stopPropagation();
+            const filename = trigger.dataset.filename;
+            const rect = trigger.getBoundingClientRect();
+            
+            let menuHtml = `<button class="fm-download">Download</button>`;
+            const userPermissions = floatingMenu.dataset.permissions;
+            if (userPermissions === 'delete' || userPermissions === 'admin') {
+                menuHtml += `<button class="fm-delete">Delete</button>`;
+            }
+            floatingMenu.innerHTML = menuHtml;
+
+            floatingMenu.querySelector('.fm-download').onclick = () => {
+                window.location.href = '/Uploads/' + encodeURIComponent(filename);
+                hideMenu();
+            };
+
+            if (floatingMenu.querySelector('.fm-delete')) {
+                floatingMenu.querySelector('.fm-delete').onclick = () => {
+                    currentDeleteFilename = filename;
+                    if (deleteModalTitle) deleteModalTitle.textContent = `Delete "${filename}"?`;
+                    if (deleteModal) deleteModal.style.display = 'flex';
+                    hideMenu();
+                };
+            }
+
+            floatingMenu.style.left = `${rect.right - 150}px`;
+            floatingMenu.style.top = `${rect.bottom + 5}px`;
+            floatingMenu.style.display = 'block';
+
+        } else if (!e.target.closest('#floating-menu')) {
+            hideMenu();
+        }
+    });
+
+    function hideMenu() {
+        if (floatingMenu) floatingMenu.style.display = 'none';
+    }
+
+    // --- Delete Modal Logic ---
+    if (deleteCancelBtn) deleteCancelBtn.addEventListener('click', closeDeleteModal);
+    if (deleteModal) deleteModal.addEventListener('click', e => {
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+
+    if (deleteConfirmBtn) {
+        deleteConfirmBtn.addEventListener('click', async () => {
+            if (!currentDeleteFilename) return;
+            try {
+                const res = await fetch('/delete/' + encodeURIComponent(currentDeleteFilename), { method: 'DELETE' });
+                if (!res.ok) {
+                   const err = await res.json().catch(() => ({error: 'Could not delete'}));
+                   throw new Error(err.error);
+                }
+            } catch (err) {
+                alert('Delete failed: ' + err.message);
+            }
+            closeDeleteModal();
+        });
+    }
+
+    function closeDeleteModal() {
+        if (deleteModal) deleteModal.style.display = 'none';
+        currentDeleteFilename = null;
+    }
+
+    // --- Server-Sent Events (SSE) ---
+    function setupEventSource() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/events');
+        eventSource.onmessage = e => {
+            try {
+                const data = JSON.parse(e.data);
+                if (!fileList) return;
+                if (data.type === 'init') {
+                    fileList.innerHTML = '';
+                    data.files.forEach(addFileToList);
+                } else if (data.type === 'file_added') {
+                    addFileToList(data.file);
+                    highlightNewFile(data.file.filename);
+                } else if (data.type === 'file_deleted') {
+                    removeFileFromList(data.file.filename);
+                }
+            } catch (err) {
+                console.error('SSE parse error:', err);
+            }
+        };
+        eventSource.onerror = () => {
+            console.error('SSE connection lost. Reconnecting...');
+            eventSource.close();
+            setTimeout(setupEventSource, 3000);
+        };
+    }
 });
 
-// Prevent drag and drop on mobile (not well supported)
-if (isTouchDevice()) {
-  // Disable global drag and drop on touch devices
-  const disableGlobalDrag = () => {
-    ['dragenter', 'dragover', 'dragleave', 'drop', 'dragend'].forEach(ev =>
-      document.removeEventListener(ev, handleGlobalDrag)
-    );
-  };
-  
-  // Call this after login if on touch device
-  const originalEnableGlobalDrag = enableGlobalDrag;
-  enableGlobalDrag = function() {
-    if (!isTouchDevice()) {
-      originalEnableGlobalDrag();
-    }
-  };
-}
