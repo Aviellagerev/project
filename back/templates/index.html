@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Shared Folder</title>
@@ -73,9 +74,24 @@
 
             <div id="files-list" class="files-list">
               <ul id="file-list" style="list-style:none;padding:6px;margin:0">
-                {% for file in files %}
+                  {% for file in files %}
                   <li id="file-{{ file.filename }}" class="file-row">
-                    <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,#eef2ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb">F</div>
+                      <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+                      {% set ext = file.filename.split('.')[-1].lower() %}
+                      {% if ext in ['pdf'] %}
+                      <i class="fa-solid fa-file-pdf" style="font-size:20px;color:#dc2626"></i>
+                      {% elif ext in ['doc','docx'] %}
+                      <i class="fa-solid fa-file-word" style="font-size:20px;color:#2563eb"></i>
+                      {% elif ext in ['xls','xlsx'] %}
+                      <i class="fa-solid fa-file-excel" style="font-size:20px;color:#16a34a"></i>
+                      {% elif ext in ['png','jpg','jpeg'] %}
+                      <i class="fa-solid fa-file-image" style="font-size:20px;color:#ca8a04"></i>
+                      {% elif ext in ['zip','rar'] %}
+                      <i class="fa-solid fa-file-archive" style="font-size:20px;color:#6b7280"></i>
+                      {% else %}
+                      <i class="fa-solid fa-file" style="font-size:20px;color:#4b5563"></i>
+                      {% endif %}
+                    </div>
                     <div class="file-meta">
                       <div class="file-name">{{ file.filename }}</div>
                       <div class="file-sub"><div class="date">{{ file.upload_time }}</div><div>{{ (file.size // 1024) }} KB</div></div>

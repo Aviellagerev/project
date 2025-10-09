@@ -184,7 +184,9 @@ function addFileToList(data) {
   li.id = id;
   li.className = 'file-row';
   li.innerHTML = `
-    <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(180deg,#eef2ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb">F</div>
+    <div style="width:54px;height:54px;display:flex;align-items:center;justify-content:center">
+      ${getFileIconHtml(data.filename)}
+    </div>
     <div class="file-meta">
       <div class="file-name">${escapeHtml(data.filename)}</div>
       <div class="file-sub"><div class="date">${data.upload_time}</div><div>${data.size ? formatSize(data.size) : '—'}</div></div>
@@ -224,6 +226,24 @@ function formatSize(n) {
 function escapeHtml(s) {
   return String(s).replace(/[&"'<>]/g, c => ({'&': '&amp;', '"': '&quot;', '\'': '&#39;', '<': '&lt;', '>': '&gt;'}[c]));
 }
+
+function getFileIconHtml(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (['pdf'].includes(ext)) {
+    return `<i class="fa-solid fa-file-pdf" style="font-size:28px;color:#dc2626"></i>`;
+  } else if (['doc', 'docx'].includes(ext)) {
+    return `<i class="fa-solid fa-file-word" style="font-size:28px;color:#2563eb"></i>`;
+  } else if (['xls', 'xlsx'].includes(ext)) {
+    return `<i class="fa-solid fa-file-excel" style="font-size:28px;color:#16a34a"></i>`;
+  } else if (['png', 'jpg', 'jpeg'].includes(ext)) {
+    return `<i class="fa-solid fa-file-image" style="font-size:28px;color:#ca8a04"></i>`;
+  } else if (['zip', 'rar'].includes(ext)) {
+    return `<i class="fa-solid fa-file-archive" style="font-size:28px;color:#6b7280"></i>`;
+  } else {
+    return `<i class="fa-solid fa-file" style="font-size:28px;color:#4b5563"></i>`;
+  }
+}
+
 
 // ---------- FLOATING MENU ----------
 document.addEventListener('click', e => {
@@ -341,3 +361,113 @@ if (logoutBtn) logoutBtn.addEventListener('click', () => {
   if (eventSource) eventSource.close();
   window.location.href = '/logout';
 });
+// ... (previous code remains the same until the floating menu section) ...
+
+// ---------- FLOATING MENU ----------
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-trigger') && floatingMenu && !floatingMenu.contains(e.target)) {
+    floatingMenu.style.display = 'none';
+    floatingMenu.setAttribute('aria-hidden', 'true');
+  }
+});
+
+document.addEventListener('click', e => {
+  const trg = e.target.closest('.menu-trigger');
+  if (!trg) return;
+  const filename = trg.dataset.filename;
+  const rect = trg.getBoundingClientRect();
+  
+  // Check if mobile device
+  const isMobile = window.innerWidth <= 768;
+  
+  if (isMobile) {
+    // Position at bottom of screen for mobile
+    floatingMenu.style.left = '50%';
+    floatingMenu.style.transform = 'translateX(-50%)';
+    floatingMenu.style.bottom = '20px';
+    floatingMenu.style.top = 'auto';
+  } else {
+    // Desktop positioning
+    floatingMenu.style.left = (rect.right - 10) + 'px';
+    floatingMenu.style.top = (rect.bottom + 8) + 'px';
+    floatingMenu.style.bottom = 'auto';
+    floatingMenu.style.transform = 'none';
+  }
+  
+  floatingMenu.style.display = 'block';
+  floatingMenu.setAttribute('aria-hidden', 'false');
+  floatingMenu.innerHTML = `
+    <button id="fm-download">Download</button>
+    <button id="fm-delete">Delete</button>
+  `;
+  
+  // Fix download button to download without redirecting
+  document.getElementById('fm-download').onclick = () => {
+    // Create a hidden anchor element to trigger download
+    const a = document.createElement('a');
+    a.href = '/Uploads/' + encodeURIComponent(filename);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    floatingMenu.style.display = 'none';
+  };
+  
+  document.getElementById('fm-delete').onclick = () => {
+    currentDeleteFilename = filename;
+    deleteModalTitle.textContent = `Delete "${filename}"?`;
+    deleteModal.style.display = 'flex';
+    floatingMenu.style.display = 'none';
+  };
+  e.stopPropagation();
+});
+
+// ... (rest of the code remains the same) ...
+
+// ---------- MOBILE-SPECIFIC ENHANCEMENTS ----------
+// Detect touch device
+function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+}
+
+// Add touch feedback for mobile
+if (isTouchDevice()) {
+  document.addEventListener('touchstart', function() {}, {passive: true});
+  
+  // Add active class to buttons on touch
+  const buttons = document.querySelectorAll('button, .menu-trigger, .file-row');
+  buttons.forEach(btn => {
+    btn.addEventListener('touchstart', function() {
+      this.classList.add('active');
+    });
+    
+    btn.addEventListener('touchend', function() {
+      this.classList.remove('active');
+    });
+  });
+}
+
+// Handle mobile browser navigation
+window.addEventListener('popstate', function() {
+  if (loggedIn) {
+    resetDragState();
+  }
+});
+
+// Prevent drag and drop on mobile (not well supported)
+if (isTouchDevice()) {
+  // Disable global drag and drop on touch devices
+  const disableGlobalDrag = () => {
+    ['dragenter', 'dragover', 'dragleave', 'drop', 'dragend'].forEach(ev =>
+      document.removeEventListener(ev, handleGlobalDrag)
+    );
+  };
+  
+  // Call this after login if on touch device
+  const originalEnableGlobalDrag = enableGlobalDrag;
+  enableGlobalDrag = function() {
+    if (!isTouchDevice()) {
+      originalEnableGlobalDrag();
+    }
+  };
+}

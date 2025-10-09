@@ -245,16 +245,229 @@ body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica
   gap: 12px;
   justify-content: center;
 }
+
 /* Ensure proper initial state */
 #app {
-    display: none;
+  display: none;
 }
 
 #login-section {
-    display: block;
+  display: block;
 }
 
 /* Fix for card expansion */
 .card.app-expanded {
-    transition: max-width 0.3s ease;
+  transition: max-width 0.3s ease;
+}
+
+/* ---------- MOBILE ENHANCEMENTS ---------- */
+@media (max-width: 768px) {
+  .page {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  
+  .card {
+    max-width: 100%;
+    border-radius: 12px;
+  }
+  
+  .login-container {
+    padding: 24px 20px;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  
+  .header > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .main {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .upload-panel, .files-panel {
+    padding: 16px;
+  }
+  
+  .drop-cover {
+    padding: 18px;
+    min-height: 140px;
+  }
+  
+  .file-row {
+    padding: 12px;
+  }
+  
+  .file-actions .menu-trigger {
+    padding: 8px 10px;
+    font-size: 1.2rem;
+  }
+  
+  /* Increase touch target sizes */
+  button, .btn-primary, .btn-secondary, .btn-danger, #logout-btn {
+    padding: 14px 18px;
+    font-size: 1rem;
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  input {
+    padding: 14px 16px;
+    font-size: 1rem;
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  /* Adjust modal for mobile */
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  /* Adjust floating menu for mobile */
+  #floating-menu {
+    min-width: 180px;
+    left: 50% !important;
+    transform: translateX(-50%);
+    bottom: 20px;
+    top: auto !important;
+  }
+  
+  #floating-menu button {
+    padding: 14px 16px;
+    font-size: 1rem;
+    text-align: center;
+  }
+  
+  /* Mobile-specific upload button */
+  #select-file-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* File list improvements */
+  .files-list {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  
+  .file-sub {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  /* Hide drag and drop on mobile (not well supported) */
+  .drop-cover p:first-child {
+    display: none;
+  }
+  
+  .hint {
+    text-align: center;
+    font-size: 1rem;
+  }
+  
+  /* Mobile header adjustments */
+  .brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .realtime {
+    margin-top: 8px;
+  }
+}
+
+/* For very small devices */
+@media (max-width: 480px) {
+  .login-header .logo {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+  
+  #login-section h2 {
+    font-size: 1.2rem;
+  }
+  
+  .brand .logo {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+  
+  .title {
+    font-size: 1rem;
+  }
+  
+  .realtime {
+    font-size: 0.8rem;
+  }
+  
+  #logout-btn {
+    padding: 10px 12px;
+  }
+  
+  .file-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .file-actions {
+    align-self: flex-end;
+  }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .file-row:hover {
+    transform: none;
+  }
+  
+  .btn-primary:hover, .btn-secondary:hover, .btn-danger:hover, #logout-btn:hover {
+    transform: none;
+  }
+  
+  .menu-trigger:hover {
+    transform: none;
+  }
+  
+  /* Add active states for touch feedback */
+  .file-row:active {
+    background-color: #f1f5f9;
+  }
+  
+  button:active, .btn-primary:active, .btn-secondary:active, .btn-danger:active {
+    transform: scale(0.98);
+  }
+  
+  .menu-trigger:active {
+    background-color: #e2e8f0;
+  }
+}
+
+/* Prevent zoom on input focus for mobile */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents zoom on focus */
+  }
 }
