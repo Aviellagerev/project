@@ -4,93 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Shared Folder</title>
-    <!-- We'll use the main stylesheet for consistency -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <!-- Custom styles for a polished admin panel -->
     <style>
-        .admin-page {
-            padding: 20px;
-            background: linear-gradient(180deg, #f0f4ff, #e6e9f2);
-        }
-        .admin-card {
-            max-width: 800px;
-            margin: 20px auto;
-            border-radius: 14px;
-            box-shadow: 0 10px 30px rgba(30, 41, 59, 0.09);
-            padding: 24px 28px;
-        }
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 16px;
-        }
-        .admin-header h2 {
-            font-size: 1.5rem;
-            color: #1e293b;
-        }
-        .user-table-container {
-            overflow-x: auto;
-        }
-        .user-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .user-table th, .user-table td {
-            padding: 14px 10px;
-            border-bottom: 1px solid #f1f5f9;
-            text-align: left;
-            vertical-align: middle;
-        }
-        .user-table th {
-            background: #f8fafc;
-            font-weight: 600;
-            color: #475569;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .user-table tr:last-child td {
-            border-bottom: none;
-        }
-        .user-table td strong {
-            color: #1e293b;
-            font-weight: 600;
-        }
-        .user-table td select {
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            font-size: 0.95rem;
-            background-color: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .user-table td select:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-        .user-table td select:disabled {
-            background-color: #f8fafc;
-            color: #94a3b8;
-            cursor: not-allowed;
-        }
-        .status-message {
-            margin-top: 20px;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 500;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.3s, transform 0.3s;
-        }
-        .status-message.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .admin-page { padding: 20px; background: linear-gradient(180deg, #f0f4ff, #e6e9f2); min-height: 100vh; }
+        .admin-card { max-width: 800px; margin: 20px auto; border-radius: 14px; box-shadow: 0 10px 30px rgba(30, 41, 59, 0.09); background: #fff; padding: 24px 28px; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+        .admin-header h2 { font-size: 1.5rem; color: #1e293b; }
+        .user-table-container { overflow-x: auto; }
+        .user-table { width: 100%; border-collapse: collapse; }
+        .user-table th, .user-table td { padding: 14px 10px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: middle; }
+        .user-table th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .user-table tr:last-child td { border-bottom: none; }
+        .user-table td strong { color: #1e293b; font-weight: 600; }
+        .user-table td select { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; background-color: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
+        .user-table td select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        .user-table td select:disabled { background-color: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+        .delete-btn { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.1rem; transition: color 0.2s; }
+        .delete-btn:hover { color: #ef4444; }
+        .status-message { margin-top: 20px; padding: 12px; border-radius: 8px; text-align: center; font-weight: 500; opacity: 0; transform: translateY(-10px); transition: opacity 0.3s, transform 0.3s; }
+        .status-message.show { opacity: 1; transform: translateY(0); }
         .status-success { background: #dcfce7; color: #166534; }
         .status-error { background: #fee2e2; color: #991b1b; }
     </style>
@@ -110,11 +43,10 @@
                         <tr>
                             <th>Username</th>
                             <th>Permissions</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="user-list">
-                        <!-- User data will be loaded here by JavaScript -->
-                    </tbody>
+                    <tbody id="user-list"></tbody>
                 </table>
             </div>
             <div id="status-message" class="status-message"></div>
@@ -126,64 +58,73 @@
             const statusMessage = document.getElementById('status-message');
             const currentUser = '{{ user_name }}';
             let statusTimeout;
+            let eventSource;
+
+            function createUserRow(user) {
+                const tr = document.createElement('tr');
+                tr.id = `user-${user.id}`;
+                const isCurrentUserAdmin = user.username === currentUser;
+                tr.innerHTML = `
+                    <td><strong>${user.username}</strong> ${user.permissions === 'admin' ? '<span class="muted">(Admin)</span>' : ''}</td>
+                    <td>
+                        <select data-user-id="${user.id}" ${isCurrentUserAdmin ? 'disabled title="Cannot change your own permissions"' : ''}>
+                            <option value="read" ${user.permissions === 'read' ? 'selected' : ''}>Read (Download only)</option>
+                            <option value="write" ${user.permissions === 'write' ? 'selected' : ''}>Write (Upload & Download)</option>
+                            <option value="delete" ${user.permissions === 'delete' ? 'selected' : ''}>Delete (All actions)</option>
+                            <option value="admin" ${user.permissions === 'admin' ? 'selected' : ''}>Admin</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="delete-btn" data-user-id="${user.id}" ${isCurrentUserAdmin ? 'disabled' : ''} title="Delete user">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                return tr;
+            }
 
             async function fetchUsers() {
                 try {
                     const response = await fetch('/api/users');
                     if (!response.ok) throw new Error('Failed to fetch users');
                     const users = await response.json();
-                    renderUsers(users);
-                } catch (error) {
-                    showStatus(error.message, 'error');
-                }
-            }
-
-            function renderUsers(users) {
-                userListBody.innerHTML = '';
-                users.forEach(user => {
-                    const tr = document.createElement('tr');
-                    const isCurrentUserAdmin = user.username === currentUser;
-                    tr.innerHTML = `
-                        <td><strong>${user.username}</strong> ${user.permissions === 'admin' ? '<span class="muted">(Admin)</span>' : ''}</td>
-                        <td>
-                            <select data-user-id="${user.id}" ${isCurrentUserAdmin ? 'disabled title="Cannot change your own permissions"' : ''}>
-                                <option value="read" ${user.permissions === 'read' ? 'selected' : ''}>Read (Download only)</option>
-                                <option value="write" ${user.permissions === 'write' ? 'selected' : ''}>Write (Upload & Download)</option>
-                                <option value="delete" ${user.permissions === 'delete' ? 'selected' : ''}>Delete (All actions)</option>
-                                <option value="admin" ${user.permissions === 'admin' ? 'selected' : ''}>Admin</option>
-                            </select>
-                        </td>
-                    `;
-                    userListBody.appendChild(tr);
-                });
+                    userListBody.innerHTML = '';
+                    users.forEach(user => userListBody.appendChild(createUserRow(user)));
+                } catch (error) { showStatus(error.message, 'error'); }
             }
 
             userListBody.addEventListener('change', async (e) => {
                 if (e.target.tagName === 'SELECT') {
-                    const selectElement = e.target;
-                    const originalValue = selectElement.querySelector('option[selected]').value;
-                    const userId = selectElement.dataset.userId;
-                    const newPermission = selectElement.value;
-
+                    const select = e.target;
+                    const userId = select.dataset.userId;
+                    const newPermission = select.value;
+                    const originalPermission = Array.from(select.options).find(o => o.defaultSelected).value;
                     try {
-                        const response = await fetch('/api/update_permission', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                        const res = await fetch('/api/update_permission', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ id: userId, permission: newPermission }),
                         });
-                        const result = await response.json();
-                        if (response.ok && result.success) {
-                            showStatus('Permissions updated successfully.', 'success');
-                            // Update the 'selected' attribute for future reference
-                            selectElement.querySelector(`option[value="${originalValue}"]`).removeAttribute('selected');
-                            selectElement.querySelector(`option[value="${newPermission}"]`).setAttribute('selected', '');
-                        } else {
-                            throw new Error(result.error || 'Failed to update');
-                        }
-                    } catch (error) {
-                        showStatus(error.message, 'error');
-                        // Revert the dropdown on error
-                        selectElement.value = originalValue;
+                        const result = await res.json();
+                        if (!res.ok) throw new Error(result.error || 'Failed to update');
+                        showStatus('Permissions updated.', 'success');
+                        Array.from(select.options).forEach(o => o.defaultSelected = false);
+                        select.querySelector(`option[value="${newPermission}"]`).defaultSelected = true;
+                    } catch (error) { showStatus(error.message, 'error'); select.value = originalPermission; }
+                }
+            });
+
+            userListBody.addEventListener('click', async (e) => {
+                const deleteButton = e.target.closest('.delete-btn');
+                if (deleteButton && !deleteButton.disabled) {
+                    const userId = deleteButton.dataset.userId;
+                    const username = deleteButton.closest('tr').querySelector('strong').textContent;
+                    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+                        try {
+                            const res = await fetch(`/api/delete_user/${userId}`, { method: 'DELETE' });
+                            const result = await res.json();
+                            if (!res.ok) throw new Error(result.error || 'Failed to delete user');
+                            showStatus(`User "${username}" deleted.`, 'success');
+                        } catch (error) { showStatus(error.message, 'error'); }
                     }
                 }
             });
@@ -191,14 +132,33 @@
             function showStatus(message, type) {
                 clearTimeout(statusTimeout);
                 statusMessage.textContent = message;
-                statusMessage.className = `status-message status-${type}`;
-                statusMessage.classList.add('show');
-                statusTimeout = setTimeout(() => {
-                    statusMessage.classList.remove('show');
-                }, 3000);
+                statusMessage.className = `status-message status-${type} show`;
+                statusTimeout = setTimeout(() => statusMessage.classList.remove('show'), 3000);
+            }
+
+            // **FIX**: Setup SSE to listen for admin-specific events
+            function setupEventSource() {
+                if (eventSource) eventSource.close();
+                eventSource = new EventSource('/events');
+                eventSource.onmessage = e => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        if (data.type === 'user_registered') {
+                            const newUser = data.data;
+                            if (!document.getElementById(`user-${newUser.id}`)) {
+                                userListBody.appendChild(createUserRow(newUser));
+                            }
+                        } else if (data.type === 'user_deleted') {
+                            const deletedUserRow = document.getElementById(`user-${data.data.id}`);
+                            if(deletedUserRow) deletedUserRow.remove();
+                        }
+                    } catch (err) { console.error('SSE Error:', err); }
+                };
+                eventSource.onerror = () => { eventSource.close(); setTimeout(setupEventSource, 3000); };
             }
 
             fetchUsers();
+            setupEventSource();
         });
     </script>
 </body>
