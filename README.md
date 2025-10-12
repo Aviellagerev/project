@@ -29,40 +29,48 @@ Real-Time Communication: Server-Sent Events (SSE)
 
 Deployment: Can be deployed with any WSGI server like Gunicorn or Waitress.
 
-📂 Project Structure
-The project is organized using the Flask application factory pattern for better structure, scalability, and maintainability.
+📂 File Breakdown
+The project is organized using the Flask application factory pattern for better structure and scalability. Here is a breakdown of the key files and their purpose:
 
-project-login/
-│
-├── run.py              # The main script to start the application server.
-├── requirements.txt    # Lists the required Python packages.
-├── .gitignore          # Specifies files and folders for Git to ignore.
-│
-└── back/               # The core Flask application package.
-    │
-    ├── __init__.py     # Initializes the Flask app and registers blueprints.
-    │
-    ├── static/         # Contains all static files (CSS, JavaScript).
-    │   ├── css/
-    │   │   ├── styles.css  # Main stylesheet for the application.
-    │   │   └── admin.css   # Styles specific to the admin panel.
-    │   └── js/
-    │       ├── script.js   # Client-side logic for the main file manager.
-    │       └── admin.js    # Client-side logic for the admin panel.
-    │
-    ├── templates/      # Contains all HTML templates.
-    │   ├── index.html    # A single template for both login and the file manager.
-    │   └── admin.html    # The template for the user management panel.
-    │
-    ├── auth.py         # Handles user authentication, registration, and sessions.
-    ├── files.py        # Manages all file-related actions (upload, download, delete).
-    ├── admin.py        # Contains the routes and logic for the admin panel.
-    ├── events.py       # Manages the Server-Sent Events (SSE) stream for real-time updates.
-    ├── database.py     # Handles database connection, initialization, and teardown.
-    ├── config.py       # Stores configuration variables for the application.
-    ├── models.py       # (Optional) Can be used to define data models.
-    ├── schema.sql      # The SQL schema for creating the database tables.
-    └── utils.py        # Contains helper and utility functions.
+Root Directory (project-login/)
+run.py: The main entry point to start the Flask application server.
+
+requirements.txt: Lists all the required Python packages for the project.
+
+.gitignore: Specifies which files and directories should be ignored by Git version control.
+
+Application Package (back/)
+__init__.py: The heart of the application. It contains the application factory (create_app), initializes the Flask app, and registers all the different modules (blueprints).
+
+config.py: Stores configuration variables, such as secret keys and database paths, for different environments (e.g., development, production).
+
+database.py: Manages all database-related functions, including connecting to the database, closing the connection, and initializing the database with a default admin user.
+
+schema.sql: Contains the SQL commands to create the users table schema from scratch.
+
+auth.py: Handles all user authentication logic, including registration, login, logout, and session management. It also contains the permission decorators.
+
+files.py: Manages all file-related actions, such as handling file uploads, serving downloads, and processing deletions.
+
+admin.py: Contains all the routes and logic for the admin panel, including listing users and updating their permissions.
+
+events.py: Manages the Server-Sent Events (SSE) stream, allowing the server to push real-time updates to connected clients.
+
+utils.py: A collection of helper and utility functions used across the application, such as fetching the list of files.
+
+Templates (back/templates/)
+index.html: A single, dynamic Jinja2 template that serves as both the login/registration page for logged-out users and the main file manager interface for logged-in users.
+
+admin.html: The template for the user management panel, accessible only to administrators.
+
+Static Files (back/static/)
+css/styles.css: The main stylesheet for the application's look and feel, including the login page and file manager.
+
+css/admin.css: Styles specifically tailored for the admin panel to give it a distinct appearance.
+
+js/script.js: Contains all the client-side JavaScript for the main application, handling UI interactions, file sorting, drag-and-drop, and real-time updates.
+
+js/admin.js: Contains the client-side JavaScript for the admin panel, responsible for fetching users and handling real-time updates to the user list.
 
 🚀 Getting Started
 Follow these instructions to get a local copy up and running.
