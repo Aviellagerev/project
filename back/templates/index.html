@@ -1,127 +1,151 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shared Folder</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Shared Folder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-  <div class="page">
-    <div class="card" id="card-root">
-      <!-- LOGIN/REGISTER -->
-      <section id="login-section" style="{% if not logged_in %}display: block{% else %}display: none{% endif %}">
-        <div class="login-container">
-          <div class="login-header">
-            <div class="logo">SF</div>
-            <h2 id="form-title">Welcome back</h2>
-            <p id="form-subtitle" class="muted">Sign in to access your shared folder</p>
-          </div>
-          <form id="auth-form" method="post" action="/login">
-            <input name="username" placeholder="Username" required />
-            <input type="password" name="password" placeholder="Password" required />
-            <button type="submit" id="submit-btn">Sign in</button>
-          </form>
-          <div class="form-switch muted">
-            <span id="register-prompt">Don't have an account? <a href="#" id="register-toggle">Register</a></span>
-            <span id="login-prompt" style="display:none;">Already have an account? <a href="#" id="login-toggle">Login</a></span>
-          </div>
-          <div id="error-message" class="error" style="display: {% if error %}block{% else %}none{% endif %}; margin-top: 15px;">{{ error or '' }}</div>
-          <div id="success-message" class="success" style="display: {% if success %}block{% else %}none{% endif %}; margin-top: 15px;">{{ success or '' }}</div>
-        </div>
-      </section>
+    <div class="page">
+        <div class="card {% if logged_in %}app-expanded{% endif %}" id="card-root">
 
-      <!-- APP -->
-      <div id="app" style="{% if logged_in %}display: block{% else %}display: none{% endif %}">
-        <header class="header">
-          <div class="brand">
-            <div class="logo">SF</div>
-            <div>
-              <div class="title">Shared Folder</div>
-              <div class="muted">Permissions: 
-                <strong id="permission-display" style="color: #3b82f6;">
-                    {% if permissions == 'read' %}Download Only
-                    {% elif permissions == 'write' %}Download & Upload
-                    {% elif permissions == 'delete' %}Download, Upload & Delete
-                    {% elif permissions == 'admin' %}Full Access (Admin)
-                    {% else %}{{ permissions }}
+            {% if not logged_in %}
+            <section id="login-section">
+                <div class="login-container">
+                    <div class="login-header">
+                        <div class="logo">SF</div>
+                        <h2>Welcome back</h2>
+                        <p>Sign in to access your shared folder</p>
+                    </div>
+                    <form id="auth-form" method="post" action="{{ url_for('auth.login') }}">
+                        <input class="form-control" name="username" placeholder="Username" required />
+                        <input class="form-control" type="password" name="password" placeholder="Password" required />
+                        <button type="submit" id="submit-btn" class="btn">Sign in</button>
+                    </form>
+                    <div class="form-switch">
+                        <span id="register-prompt">Don't have an account? <a href="#" id="register-toggle">Register</a></span>
+                        <span id="login-prompt" style="display:none;">Already have an account? <a href="#" id="login-toggle">Login</a></span>
+                    </div>
+                    {% if error %}
+                    <div id="error-message" class="message error">{{ error }}</div>
                     {% endif %}
-                </strong>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px">
-            <a href="/admin" class="btn-secondary" id="admin-btn" {% if permissions != 'admin' %}style="display:none;"{% endif %}>Admin Panel</a>
-            <div class="realtime"><span class="live-indicator"></span>Live</div>
-            <div id="logout-section" style="display:flex;align-items:center;gap:12px">
-              <div id="greeting" style="font-weight:600;color:#0f172a">{{ 'Hello, ' + user_name if user_name else '' }}</div>
-              <a href="/logout" id="logout-btn" class="btn-danger">Logout</a>
-            </div>
-          </div>
-        </header>
-
-        <!-- **FIX**: Corrected grid layout for admin view -->
-        <main class="main" id="main-content">
-          <aside class="upload-panel" id="upload-panel" {% if permissions not in ['write', 'delete', 'admin'] %}style="display:none;"{% endif %}>
-            <h3 style="margin-bottom:8px">Upload files</h3>
-            <div id="drop-cover" class="drop-cover">
-              <p style="font-weight:700">Drag & drop to upload</p>
-              <p class="hint">or select files manually</p>
-              <div class="actions">
-                <input id="file-input" name="file" type="file" multiple style="display:none" />
-                <button id="select-file-btn" class="btn-primary" type="button">Select files</button>
-              </div>
-            </div>
-          </aside>
-          
-          <section class="files-panel" id="files-panel">
-            <div class="files-header">
-              <div class="files-info">
-                <h3 style="margin:0">Uploaded files</h3>
-                <div class="muted">Files available to your team</div>
-              </div>
-              <div class="files-controls">
-                <div id="upload-stats" class="muted">0 files</div>
-                <div class="sort-dropdown">
-                  <button class="sort-btn">Sort ▾</button>
-                  <div class="sort-menu">
-                    <button data-sort="date">Date</button>
-                    <button data-sort="name">Name</button>
-                    <button data-sort="uploader">Uploader</button>
-                    <button data-sort="size">Size</button>
-                  </div>
+                    {% if success %}
+                    <div id="success-message" class="message success">{{ success }}</div>
+                    {% endif %}
                 </div>
-              </div>
+            </section>
+            {% endif %}
+
+            {% if logged_in %}
+            <div id="app">
+                <header class="header">
+                    <div class="brand">
+                        <div class="logo">SF</div>
+                        <div>
+                            <div class="title">Shared Folder</div>
+                            <div class="muted" id="permission-display">
+                                {% if permissions == 'read' %}Download Only
+                                {% elif permissions == 'write' %}Download & Upload
+                                {% elif permissions == 'delete' %}Full Permissions
+                                {% elif permissions == 'admin' %}Administrator
+                                {% else %}{{ permissions }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <a href="{{ url_for('admin.panel') }}" class="btn btn-secondary" id="admin-btn" {% if permissions != 'admin' %}style="display:none;"{% endif %}>Admin</a>
+                        <div id="greeting" class="greeting-text">Hello, {{ user_name }}</div>
+                        <a href="{{ url_for('auth.logout') }}" id="logout-btn" class="btn btn-danger">Logout</a>
+                    </div>
+                </header>
+                <main class="main" id="main-content">
+                    <aside class="panel" id="upload-panel">
+                        <h3>Upload Files</h3>
+                        <div id="drop-cover" class="drop-cover">
+                            <p style="font-weight:700">Drag & drop to upload</p>
+                            <p class="muted">or select files manually</p>
+                            <input id="file-input" name="file" type="file" multiple style="display:none" />
+                            <button id="select-file-btn" class="btn btn-primary" type="button">Select files</button>
+                        </div>
+                    </aside>
+                    <section class="panel" id="files-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Uploaded Files</h3>
+                                <div class="muted">Files available to your team</div>
+                            </div>
+                            <div class="files-controls">
+                                <div id="upload-stats" class="muted">0 files</div>
+                                <div class="sort-dropdown">
+                                    <button class="sort-btn btn btn-secondary"><i class="fa-solid fa-sort"></i> Sort</button>
+                                    <div class="sort-menu">
+                                        <button data-sort="date" class="active"><i class="fa-solid fa-calendar-days"></i> Date</button>
+                                        <button data-sort="name"><i class="fa-solid fa-file-signature"></i> Name</button>
+                                        <button data-sort="type"><i class="fa-solid fa-puzzle-piece"></i> Type</button>
+                                        <button data-sort="size"><i class="fa-solid fa-hard-drive"></i> Size</button>
+                                        <button data-sort="uploader"><i class="fa-solid fa-user"></i> Uploader</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="files-list-container">
+                            <ul id="file-list"></ul>
+                        </div>
+                    </section>
+                </main>
             </div>
-            <div id="files-list" class="files-list">
-              <ul id="file-list" style="list-style:none;padding:6px;margin:0"></ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    {% if logged_in %}
+    <div id="floating-menu" aria-hidden="true" data-permissions="{{ permissions }}"></div>
+    <div id="global-drop-overlay" aria-hidden="true">
+        <div class="overlay-card">
+            <div class="overlay-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div class="overlay-text">Drop files to upload</div>
+        </div>
+    </div>
+    <div id="delete-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="delete-modal-title">Delete file?</h3>
+            <p>This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="delete-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="delete-confirm-btn" class="btn btn-danger">Delete</button>
             </div>
-          </section>
-        </main>
-      </div>
+        </div>
     </div>
-  </div>
-
-  <div id="floating-menu" aria-hidden="true" data-permissions="{{ permissions }}"></div>
-  <div id="global-drop-overlay" aria-hidden="true"><div class="overlay-card">Drop files to upload</div></div>
-  
-  <div id="delete-modal" class="modal-overlay">
-    <div class="modal-content">
-      <h3 id="delete-modal-title">Delete file?</h3>
-      <p>This action cannot be undone.</p>
-      <div class="modal-actions">
-        <button id="delete-cancel-btn" class="btn-secondary">Cancel</button>
-        <button id="delete-confirm-btn" class="btn-danger">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- **FIX**: Embed initial files for reliable loading -->
-  <script id="initial-files" type="application/json">
-    {{ files | tojson | safe }}
-  </script>
-
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script id="initial-files" type="application/json">{{ files | tojson | safe }}</script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% else %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const authForm = document.getElementById('auth-form');
+            if (!authForm) return;
+            const formTitle = document.querySelector('.login-header h2');
+            const submitBtn = document.getElementById('submit-btn');
+            const registerToggle = document.getElementById('register-toggle');
+            const loginToggle = document.getElementById('login-toggle');
+            const registerPrompt = document.getElementById('register-prompt');
+            const loginPrompt = document.getElementById('login-prompt');
+            function switchAuthMode(mode) {
+                const isRegister = mode === 'register';
+                authForm.action = isRegister ? "{{ url_for('auth.register') }}" : "{{ url_for('auth.login') }}";
+                formTitle.textContent = isRegister ? 'Create Account' : 'Welcome back';
+                submitBtn.textContent = isRegister ? 'Register' : 'Sign in';
+                registerPrompt.style.display = isRegister ? 'none' : 'block';
+                loginPrompt.style.display = isRegister ? 'block' : 'none';
+            }
+            registerToggle.addEventListener('click', (e) => { e.preventDefault(); switchAuthMode('register'); });
+            loginToggle.addEventListener('click', (e) => { e.preventDefault(); switchAuthMode('login'); });
+        });
+    </script>
+    {% endif %}
 </body>
 </html>
