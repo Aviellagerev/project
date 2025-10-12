@@ -133,13 +133,14 @@ body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica
 
 /* ---------- FILES PANEL ---------- */
 .files-panel{padding:18px;border-radius:10px;background:#fff;height:100%;display:flex;flex-direction:column;gap:12px}
-.files-header{display:flex;align-items:center;justify-content:space-between}
+.files-header{display:flex;align-items:center;flex-wrap: wrap;justify-content:space-between}
 .files-list{overflow:auto;border-radius:8px;padding:8px;background:#f8fafc;flex:1;min-height:120px}
 
 .file-row{
-  display:flex;
+  display:flex; 
   align-items:center;
   gap:12px;
+  justify-content: space-between;
   padding:10px;
   border-radius:8px;
   background:#fff;
@@ -155,10 +156,19 @@ body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica
   background: #f8fafc;
 }
 
-.file-meta{flex:1;min-width:0;display:flex;flex-direction:column}
+.file-meta{flex:1;min-width:0;display:flex;flex-direction:column;}
 .file-name{font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file-sub{display:flex;gap:10px;font-size:0.85rem;color:#64748b;margin-top:6px}
-.file-actions{display:flex;align-items:center;gap:8px}
+.file-sub{display:flex;flex-wrap: wrap;gap:10px;font-size:0.85rem;color:#64748b;margin-top:6px;}
+.file-actions{display:flex;flex: 0 0 44px;align-items:center;gap:8px;flex-shrink: 0;width: 40px;}
+.file-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;           
+  flex: 1;                
+  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 0;           
+}
 
 .menu-trigger{
   background:#f1f5f9;
@@ -173,6 +183,61 @@ body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica
   background:#eef2ff;
   border-color:#dbeafe;
   transform: scale(1.1);
+}
+
+.sort-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.sort-btn {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sort-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 120px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 100;
+}
+
+.sort-menu div {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.sort-menu div:hover {
+  background-color: #f0f0f0;
+}
+
+.files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.files-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.files-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
 }
 
 #floating-menu{position:fixed;display:none;min-width:150px;border-radius:8px;background:#fff;border:1px solid #e6eef8;box-shadow:0 10px 30px rgba(2,6,23,0.12);z-index:9999;overflow:hidden}

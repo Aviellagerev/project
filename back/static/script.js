@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginToggle = document.getElementById('login-toggle');
     const registerPrompt = document.getElementById('register-prompt');
     const loginPrompt = document.getElementById('login-prompt');
-    
+
     // --- Upload Elements ---
     const dropCover = document.getElementById('drop-cover');
     const fileInput = document.getElementById('file-input');
@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loginPrompt.style.display = 'none';
         });
     }
+
 
     // --- Global Drag & Drop ---
     function enableGlobalDrag() {
@@ -128,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+     let filesArray = [];
     // --- File List & UI Rendering ---
     function addFileToList(file) {
         const id = `file-${file.filename}`;
@@ -139,20 +141,75 @@ document.addEventListener('DOMContentLoaded', function() {
             <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center">${getFileIconHtml(file.filename)}</div>
             <div class="file-meta">
                 <div class="file-name">${escapeHtml(file.filename)}</div>
-                <div class="file-sub"><div class="date">${file.upload_time}</div><div>${formatSize(file.size)}</div></div>
+                <div class="file-sub">
+    			<div class="uploader">${file.uploader}</div>
+    			<div class="date">${file.upload_time}</div>
+    			<div class="size">${formatSize(file.size)}</div>
+                </div>
+	      </div>
+            <div class="file-actions">
+		<div class="menu-trigger" data-filename="${escapeHtml(file.filename)}">⋮</div>
             </div>
-            <div class="file-actions"><div class="menu-trigger" data-filename="${escapeHtml(file.filename)}">⋮</div></div>
         `;
         if (fileList) fileList.prepend(li);
         updateStats();
+         if (filesArray.some(f => f.filename === file.filename)) return;
+         filesArray.push(file);
+         renderFileList();
     }
+
+    function renderFileList() {
+        if (!fileList) return;
+        fileList.innerHTML = ''; // clear current list
+        for (const file of filesArray) {
+            const li = document.createElement('li');
+            li.id = `file-${file.filename}`;
+            li.className = 'file-row';
+            li.innerHTML = `
+                <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+                    ${getFileIconHtml(file.filename)}
+                </div>
+                <div class="file-meta">
+                    <div class="file-name">${escapeHtml(file.filename)}</div>
+                    <div class="file-sub">
+                        <div class="uploader">${file.uploader}</div>
+                        <div class="date">${file.upload_time}</div>
+                        <div class="size">${formatSize(file.size)}</div>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <div class="menu-trigger" data-filename="${escapeHtml(file.filename)}">⋮</div>
+                </div>
+            `;
+            fileList.appendChild(li);
+        }
+    }
+    function sortFiles(by) {
+        switch(by) {
+            case 'name':
+                filesArray.sort((a, b) => a.filename.localeCompare(b.filename));
+                break;
+            case 'uploader':
+                filesArray.sort((a, b) => a.uploader.localeCompare(b.uploader));
+                break;
+            case 'date':
+                filesArray.sort((a, b) => new Date(b.upload_time) - new Date(a.upload_time));
+                break;
+            case 'size':
+                filesArray.sort((a, b) => b.size - a.size);
+                break;
+        }
+        renderFileList();
+    }
+
+
 
     function removeFileFromList(filename) {
         const el = document.getElementById(`file-${filename}`);
         if (el) el.remove();
         updateStats();
     }
-    
+
     function highlightNewFile(filename) {
         const el = document.getElementById(`file-${filename}`);
         if (el) {
@@ -226,6 +283,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideMenu() {
         if (floatingMenu) floatingMenu.style.display = 'none';
     }
+
+    document.querySelector('.sort-btn').addEventListener('click', () => {
+        const menu = document.querySelector('.sort-menu');
+        menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    });
+
+    // Close dropdown if clicked outside
+    window.addEventListener('click', e => {
+        if (!e.target.matches('.sort-btn')) {
+            document.querySelector('.sort-menu').style.display = 'none';
+        }
+    });
+
 
     // --- Delete Modal Logic ---
     if (deleteCancelBtn) deleteCancelBtn.addEventListener('click', closeDeleteModal);

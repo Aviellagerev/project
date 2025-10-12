@@ -41,8 +41,22 @@
             <div class="logo">SF</div>
             <div>
               <div class="title">Shared Folder</div>
-              <!-- Display user's permission level -->
-              <div class="muted">Permissions: <strong style="color: #3b82f6;">{{ permissions }}</strong></div>
+              <!-- Display user's descriptive permission level -->
+              <div class="muted">Permissions: 
+                <strong style="color: #3b82f6;">
+                    {% if permissions == 'read' %}
+                        Download Only
+                    {% elif permissions == 'write' %}
+                        Download & Upload
+                    {% elif permissions == 'delete' %}
+                        Download, Upload & Delete
+                    {% elif permissions == 'admin' %}
+                        Full Access (Admin)
+                    {% else %}
+                        {{ permissions }}
+                    {% endif %}
+                </strong>
+              </div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:14px">
@@ -77,12 +91,23 @@
           <!-- FILES PANEL (expands if upload panel is hidden) -->
           <section class="files-panel" {% if permissions not in ['write', 'delete', 'admin'] %}style="grid-column: 1 / -1;"{% endif %}>
             <div class="files-header">
-              <div>
+              <div class="files-info">
                 <h3 style="margin:0">Uploaded files</h3>
                 <div class="muted">Files uploaded by your team</div>
               </div>
-              <div id="upload-stats" class="muted">{{ files|length }} files</div>
+              <div class="files-controls">
+                <div id="upload-stats" class="muted">{{ files|length }} files</div>
+              </div>
             </div>
+             <div class="sort-dropdown">
+                  <button class="sort-btn">Sort ▾</button>
+                  <div class="sort-menu">
+                    <div onclick="sortFiles('name')">Name</div>
+                    <div onclick="sortFiles('uploader')">Uploader</div>
+                    <div onclick="sortFiles('date')">Date</div>
+                    <div onclick="sortFiles('size')">Size</div>
+                  </div>
+                </div>
             <div id="files-list" class="files-list">
               <ul id="file-list" style="list-style:none;padding:6px;margin:0">
                   {% for file in files %}
@@ -99,7 +124,11 @@
                     </div>
                     <div class="file-meta">
                       <div class="file-name">{{ file.filename }}</div>
-                      <div class="file-sub"><div class="date">{{ file.upload_time }}</div><div>{{ (file.size / 1024) | round(1) }} KB</div></div>
+                      <div class="file-sub">
+			<span class="uploader">{{ file.uploader }}</span>
+			<span class="date">{{ file.upload_time }}</span>
+			<span {{ (file.size / 1024) | round(1) }} KB</span>
+		      </div>
                     </div>
                     <div class="file-actions">
                       <div class="menu-trigger" data-filename="{{ file.filename }}">⋮</div>

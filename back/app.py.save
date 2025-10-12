@@ -71,10 +71,11 @@ def get_file_list():
     files = []
     try:
         for filename in os.listdir(UPLOAD_FOLDER):
-            if filename.endswith('.meta.json'):
-                continue
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             if os.path.isfile(filepath):
+e': datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%Y-%m-%d'), 'size': os.path.getsize(filepath) })
+
+
                 meta_path = f"{UPLOAD_FOLDER}/{filename}.meta.json"
                 if os.path.exists(meta_path):
                     with open(meta_path) as f:
@@ -90,6 +91,8 @@ def get_file_list():
                 'upload_time': upload_time,
                 'size': os.path.getsize(filepath)
             })
+
+
     except OSError:
        pass
     # Sort files by modification time, newest first
