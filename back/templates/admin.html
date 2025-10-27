@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-page">
+    <div class="admin-main-content">
+        <header class="admin-header">
+            <div class="brand">
+                <div class="logo">SF</div>
+                <h1>Admin Panel</h1>
+            </div>
+            <a href="{{ url_for('files.file_manager') }}" class="btn btn-secondary">Back to Files</a>
+        </header>
+
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h2>User Management</h2>
+                <p class="muted">Manage user permissions below. Changes are saved automatically.</p>
+            </div>
+            <div class="admin-card-body">
+                <div class="user-table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Permissions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list"></tbody>
+                    </table>
+                </div>
+                <div id="status-message" class="status-message"></div>
+            </div>
+        </div>
+    </div>
+    <script> const currentUser = '{{ user_name }}'; </script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

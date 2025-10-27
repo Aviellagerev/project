@@ -1,2 +1,37 @@
-back/user_db.py
-back/user.db
+--- Python ---
+Byte-compiled / optimized / C extensions
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+
+--- Environment Variables ---
+Files for storing secrets and environment-specific settings that should not be in version control
+.env
+*.env
+
+--- Project Specific ---
+Flask's instance folder, which contains the database and other non-versioned files
+/instance/
+
+The folder for all user-uploaded content
+/shared_folder/
+
+--- IDE and Editor Directories ---
+.vscode/
+.idea/
+
+--- Operating System Files ---
+macOS
+.DS_Store
+
+Windows
+Thumbs.db
+
+--- Log files ---
+*.log
+
+
+/instance
+/back/database.py
