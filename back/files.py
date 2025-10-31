@@ -10,6 +10,20 @@ from .utils import get_file_list
 
 files_bp = Blueprint('files', __name__, url_prefix='/files')
 
+# --- NEW CODE START ---
+# A set of allowed file extensions. You can customize this.
+ALLOWED_EXTENSIONS = {
+    'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
+    'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', 'mp4', 'mov', 'avi'
+}
+
+def allowed_file(filename):
+    """Checks if a file's extension is in the ALLOWED_EXTENSIONS set."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# --- NEW CODE END ---
+
+
 @files_bp.route('/')
 @login_required
 def file_manager():
@@ -32,11 +46,24 @@ def download_file(filename):
 @login_required
 @permission_required('write')
 def upload():
-    if 'file' not in request.files: return jsonify({'error': 'No file part'}), 400
+    if 'file' not in request.files: 
+        return jsonify({'error': 'No file part'}), 400
+        
     file = request.files['file']
-    if file.filename == '': return jsonify({'error': 'No selected file'}), 400
+    
+    if file.filename == '': 
+        return jsonify({'error': 'No selected file'}), 400
+
+    # --- NEW CODE START ---
+    # Validate the file extension
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed'}), 400
+    # --- NEW CODE END ---
+
     if file:
+        # Secure the filename against directory traversal
         filename = os.path.basename(file.filename)
+        
         # Use an absolute path to save the file as well, ensuring consistency
         upload_folder = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
         filepath = os.path.join(upload_folder, filename)
@@ -48,6 +75,7 @@ def upload():
         file_data = {"filename": filename, "upload_time": meta["upload_time"], "size": os.path.getsize(filepath), "uploader": session.get('username')}
         add_file_event('file_added', file_data)
         return jsonify(file_data), 201
+        
     return jsonify({'error': 'Invalid file'}), 400
 
 @files_bp.route('/delete/<path:filename>', methods=['DELETE'])
@@ -61,7 +89,9 @@ def delete_file(filename):
     if os.path.exists(file_path):
         os.remove(file_path)
         meta_path = f"{file_path}.meta.json"
-        if os.path.exists(meta_path): os.remove(meta_path)
+        if os.path.exists(meta_path): 
+            os.remove(meta_path)
         add_file_event('file_deleted', {'filename': filename})
         return jsonify({"success": True})
+        
     return jsonify({"error": "File not found"}), 404

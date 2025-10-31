@@ -1,7 +1,11 @@
 Real-Time Shared Folder Application
+
 A modern, secure, and real-time file sharing web application built with Flask. This project provides a platform for users to upload, download, and manage files with a granular, role-based permission system. All file additions and deletions are reflected instantly for all connected users without needing to refresh the page, thanks to Server-Sent Events (SSE).
 
+This application is built using the Flask application factory pattern for better structure and scalability.
+
 ✨ Features
+
 Secure User Authentication: Users can register and log in to a secure session.
 
 Role-Based Permissions: A hierarchical permission system (Read, Write, Delete, Admin) controls user actions.
@@ -14,99 +18,201 @@ Drag & Drop Uploads: A fluid and intuitive drag-and-drop interface for uploading
 
 Admin Panel: A dedicated, secure interface for administrators to manage users, change permissions, and delete accounts.
 
-Dynamic UI: The user interface dynamically adapts to a user's permissions, hiding or showing controls as needed.
-
-Modern & Responsive Design: A clean, professional, and mobile-friendly UI built with modern CSS.
+Modern & Responsive Design: A clean, professional, and mobile-friendly UI.
 
 🛠️ Tech Stack
-Backend: Flask
 
-Database: SQLite
+Backend: Flask, Gunicorn
 
 Frontend: Vanilla JavaScript, HTML5, CSS3
 
-Real-Time Communication: Server-Sent Events (SSE)
+Database: SQLite
 
-Deployment: Can be deployed with any WSGI server like Gunicorn or Waitress.
+Real-Time: Server-Sent Events (SSE) with gevent workers
 
-📂 File Breakdown
-The project is organized using the Flask application factory pattern for better structure and scalability. Here is a breakdown of the key files and their purpose:
+Production Server: Ubuntu (Oracle Cloud)
 
-Root Directory (project-login/)
-run.py: The main entry point to start the Flask application server.
+Reverse Proxy: Nginx
 
-requirements.txt: Lists all the required Python packages for the project.
+1. Getting Started (Local Development)
 
-.gitignore: Specifies which files and directories should be ignored by Git version control.
+Follow these instructions to get a local copy up and running for development.
 
-Application Package (back/)
-__init__.py: The heart of the application. It contains the application factory (create_app), initializes the Flask app, and registers all the different modules (blueprints).
-
-config.py: Stores configuration variables, such as secret keys and database paths, for different environments (e.g., development, production).
-
-database.py: Manages all database-related functions, including connecting to the database, closing the connection, and initializing the database with a default admin user.
-
-schema.sql: Contains the SQL commands to create the users table schema from scratch.
-
-auth.py: Handles all user authentication logic, including registration, login, logout, and session management. It also contains the permission decorators.
-
-files.py: Manages all file-related actions, such as handling file uploads, serving downloads, and processing deletions.
-
-admin.py: Contains all the routes and logic for the admin panel, including listing users and updating their permissions.
-
-events.py: Manages the Server-Sent Events (SSE) stream, allowing the server to push real-time updates to connected clients.
-
-utils.py: A collection of helper and utility functions used across the application, such as fetching the list of files.
-
-Templates (back/templates/)
-index.html: A single, dynamic Jinja2 template that serves as both the login/registration page for logged-out users and the main file manager interface for logged-in users.
-
-admin.html: The template for the user management panel, accessible only to administrators.
-
-Static Files (back/static/)
-css/styles.css: The main stylesheet for the application's look and feel, including the login page and file manager.
-
-css/admin.css: Styles specifically tailored for the admin panel to give it a distinct appearance.
-
-js/script.js: Contains all the client-side JavaScript for the main application, handling UI interactions, file sorting, drag-and-drop, and real-time updates.
-
-js/admin.js: Contains the client-side JavaScript for the admin panel, responsible for fetching users and handling real-time updates to the user list.
-
-🚀 Getting Started
-Follow these instructions to get a local copy up and running.
-
-Prerequisites
-Python 3.6+
-
-pip package installer
-
-Installation & Setup
 Clone the repository:
 
 git clone <your-repository-url>
-cd project-login
+cd project-folder
+
 
 Create a virtual environment:
-It is highly recommended to use a virtual environment to manage dependencies.
 
 python3 -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+
+Activate the environment:
+
+source venv/bin/activate
+
 
 Install the required packages:
+(Make sure gunicorn and gevent are in your requirements.txt)
 
 pip install -r requirements.txt
 
-Run the application:
+
+Set a development secret key:
+
+export SECRET_KEY='some-random-string-for-local-dev'
+
+
+Run the application (in debug mode):
+For local development, you can temporarily set debug=True in run.py to get error messages.
 
 python3 run.py
 
-The application will start on http://0.0.0.0:8000. Open this URL in your web browser.
 
-📝 Usage
-Default Admin Account: When you first run the application, a default admin account is automatically created:
+The application will start on http://127.0.0.1:8000.
 
-Registration: New users can register for an account. They will be granted Read permissions by default.
+2. Production Deployment (Ubuntu/Oracle Cloud)
 
-File Management: Log in to view, upload, or download files based on your assigned permissions.
+This is a comprehensive guide to deploying the application securely in a production environment.
 
-Admin Panel: Log in as an admin and navigate to the /admin route to manage users.
+A. Initial Server Setup (One-Time)
+
+Install Essential Packages:
+
+sudo apt update
+sudo apt install python3-full nginx python3-certbot-nginx iptables-persistent -y
+
+
+Configure Firewalls (Oracle Cloud):
+
+Cloud Console: In your Oracle Cloud VCN Security List, add Ingress Rules to ALLOW TCP traffic on ports 80 and 443 from source 0.0.0.0/0.
+
+Server Firewall (iptables): Open the ports on the server itself and make the rules permanent.
+
+sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save
+
+
+B. Application Setup
+
+Clone & Set Up venv:
+
+git clone <your-repository-url>
+cd project-folder
+python3 -m venv venv
+source venv/bin/activate
+
+
+Install Dependencies:
+
+pip install -r requirements.txt
+
+
+C. Security Configuration (CRITICAL)
+
+Turn Off Debug Mode: In run.py, ensure it is set to debug=False.
+
+Change Default Admin: In back/database.py, change the default admin:admin credentials to a new username and a strong, hashed password.
+
+Use Static SECRET_KEY: In back/config.py, ensure the SECRET_KEY is set to read from an environment variable: SECRET_KEY = os.environ.get('SECRET_KEY').
+
+Delete the Old DB: Delete the development database so it can be re-initialized with your new admin user.
+
+rm instance/users.db
+
+
+D. Nginx Configuration
+
+Create Nginx Config File:
+
+sudo nano /etc/nginx/sites-available/project-share
+
+
+Paste this configuration. It includes the critical fix for your real-time SSE stream.
+
+server {
+    listen 80;
+    server_name YOUR_SERVER_IP_OR_DOMAIN; # e.g., 158.178.129.52
+
+    # Standard location for the main application
+    location / {
+        proxy_pass [http://127.0.0.1:8000](http://127.0.0.1:8000);
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Special location for Server-Sent Events (SSE)
+    location /events/ {
+        proxy_pass [http://127.0.0.1:8000/events/](http://127.0.0.1:8000/events/);
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+    }
+}
+
+
+Enable the Config:
+
+sudo ln -s /etc/nginx/sites-available/project-share /etc/nginx/sites-enabled/
+sudo nginx -t 
+sudo systemctl restart nginx
+
+
+E. Secure with HTTPS (Optional, but Recommended)
+
+Run Certbot: (This only works if you are using a domain name, not an IP).
+
+sudo certbot --nginx -d YOUR_SERVER_DOMAIN
+
+
+Follow the prompts and select the "Redirect" option to force all traffic to https://.
+
+3. How to Run the Production Server
+
+Follow these steps to start your application.
+
+To Start the App:
+
+Activate venv:
+
+cd ~/project
+source venv/bin/activate
+
+
+Set Secret Key:
+
+export SECRET_KEY='PASTE_YOUR_PRODUCTION_SECRET_KEY_HERE'
+
+
+Run Gunicorn:
+This command starts your app in the background using the correct gevent workers for real-time.
+
+nohup venv/bin/gunicorn -k gevent -w 4 -b 127.0.0.1:8000 'back:create_app()' &
+
+
+Start Nginx (if not running):
+
+sudo systemctl start nginx
+
+
+Your app is now live at http://YOUR_SERVER_IP_OR_DOMAIN.
+
+To Stop the App:
+
+You can stop your app (Gunicorn) or the entire website (Nginx).
+
+To Stop ONLY Your App (Gunicorn):
+
+pkill gunicorn
+
+
+To Stop the ENTIRE Website (Nginx):
+
+sudo systemctl stop nginx

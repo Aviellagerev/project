@@ -1,37 +1,46 @@
---- Python ---
-Byte-compiled / optimized / C extensions
+Python
+
 pycache/
 *.pyc
 *.pyo
 *.pyd
 
+Virtual Environment
 
---- Environment Variables ---
-Files for storing secrets and environment-specific settings that should not be in version control
-.env
+Never commit your venv!
+
+venv/
 *.env
+.env
 
---- Project Specific ---
-Flask's instance folder, which contains the database and other non-versioned files
-/instance/
+Flask Specific
 
-The folder for all user-uploaded content
-/shared_folder/
+Ignore the instance folder which contains secrets and the DB
 
---- IDE and Editor Directories ---
-.vscode/
-.idea/
+instance/
 
---- Operating System Files ---
-macOS
-.DS_Store
+Project-Specific
 
-Windows
-Thumbs.db
+Ignore the folder for user-uploaded files
 
---- Log files ---
+shared_folder/
+*.db
+*.sqlite
+*.sqlite3
+
+Log files
+
+nohup.out
 *.log
 
+OS-generated files
 
-/instance
-/back/database.py
+.DS_Store
+Thumbs.db
+
+Editor directories and files
+
+.vscode/
+.idea/
+*.swp
+*.swo
