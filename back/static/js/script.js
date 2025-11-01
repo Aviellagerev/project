@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let dragDepth = 0;
     let currentDeleteFilename = null;
     let currentSortCriteria = 'date';
+    
+    // --- FIX: Guard variable to prevent double permission updates ---
+    let isUpdatingPermission = false;
 
     const DOMElements = {
         appRoot: document.getElementById('app'),
@@ -105,6 +108,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateUserCapabilities(permission) {
         currentUserPermissions = permission;
         if (DOMElements.floatingMenu) DOMElements.floatingMenu.dataset.permissions = permission;
+
+        // --- FIX: This updates the header text ---
+        if (DOMElements.permissionDisplay) {
+            let permissionText = permission;
+            if (permission === 'read') permissionText = 'Download Only';
+            else if (permission === 'write') permissionText = 'Download & Upload';
+            else if (permission === 'delete') permissionText = 'Full Permissions';
+            else if (permission === 'admin') permissionText = 'Administrator';
+            DOMElements.permissionDisplay.textContent = permissionText;
+        }
+        // --- END FIX ---
+
         const canUpload = ['write', 'delete', 'admin'].includes(permission);
         const isAdmin = permission === 'admin';
         if (DOMElements.uploadPanel) DOMElements.uploadPanel.style.display = canUpload ? 'flex' : 'none';
@@ -229,20 +244,34 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function handlePermissionUpdate(data) {
+        // --- FIX: Prevents the function from running twice ---
+        if (isUpdatingPermission) return;
+        isUpdatingPermission = true;
+        // --- END FIX ---
+
         const newPermission = data.new_permission;
         showToast(`Permissions updated to: ${newPermission.charAt(0).toUpperCase() + newPermission.slice(1)}`, 'info');
         currentUserPermissions = newPermission;
-        updateUserCapabilities(newPermission);
+        updateUserCapabilities(newPermission); // This updates the UI immediately
+        
         if (window.location.pathname.startsWith('/admin') && newPermission !== 'admin') {
             window.location.href = '/files';
             return;
         }
         try {
+            // We still refresh the session to keep it in sync
             const response = await fetch('/api/refresh_session');
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error('Session refresh failed');
+            // We can even call this again to be 100% sure the UI is correct
             updateUserCapabilities(result.permissions);
-        } catch (err) { showToast(err.message, 'error'); }
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+        
+        // --- FIX: Releases the guard ---
+        setTimeout(() => { isUpdatingPermission = false; }, 200); // Small delay to prevent race conditions
+    
     }
 
     function setupEventSource() {
@@ -257,7 +286,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             filesArray.unshift(data.file);
                             renderFileList();
                             highlightNewFile(data.file.filename);
-                            showToast(`New file: ${data.file.filename}`, 'success');
+                            // --- FIX: Only show toast if *another* user added the file ---
+                            if (data.file.uploader !== DOMElements.floatingMenu.dataset.username) {
+                                showToast(`New file: ${data.file.filename}`, 'success');
+                            }
                         }
                         break;
                     case 'file_deleted':

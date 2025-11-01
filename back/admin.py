@@ -32,9 +32,17 @@ def update_permission():
     if not user_to_edit: return jsonify({'error': 'User not found'}), 404
     if user_to_edit['username'] == session.get('username'):
         return jsonify({'error': "Cannot change your own permissions."}), 403
+    
     db.execute('UPDATE users SET permissions = ? WHERE id = ?', (new_permission, user_id))
     db.commit()
-    add_user_event(user_to_edit['username'], 'permission_updated', {'new_permission': new_permission})
+    
+    # Notify the user who was changed (private message)
+    add_user_event(user_to_edit['username'], 'permission_updated', {'new_permission': new_permission, 'username': user_to_edit['username']})
+    
+    # --- THIS IS THE NEW LINE ---
+    # Notify all admins so the admin panel updates (public crier)
+    add_admin_event('permission_updated', {'id': user_id, 'username': user_to_edit['username'], 'new_permission': new_permission})
+    
     return jsonify({'success': True})
 
 @admin_bp.route('/api/delete_user/<int:user_id>', methods=['DELETE'])

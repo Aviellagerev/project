@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await res.json();
                 if (!res.ok) throw new Error(result.error || 'Failed to update');
                 showStatus('Permissions updated.', 'success');
+                // The real-time event will update the UI, but this is a good fallback
             } catch (error) { showStatus(error.message, 'error'); }
         }
     });
@@ -61,7 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deleteButton && !deleteButton.disabled) {
             const userId = deleteButton.dataset.userId;
             const username = deleteButton.closest('tr').querySelector('strong').textContent;
-            if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+            // Use a custom modal instead of confirm()
+            if (window.confirm(`Are you sure you want to delete user "${username}"?`)) {
                 try {
                     const res = await fetch(`/admin/api/delete_user/${userId}`, { method: 'DELETE' });
                     const result = await res.json();
@@ -101,16 +103,38 @@ document.addEventListener('DOMContentLoaded', () => {
                             setTimeout(() => deletedUserRow.remove(), 300);
                         }
                         break;
+                    
+                    // --- THIS IS THE UPDATED LOGIC ---
                     case 'permission_updated':
-                        // **CRITICAL FIX**: Check if this update affects the currently logged-in admin.
-                        const isCurrentUserAffected = data.data.username === currentUser;
-                        if (isCurrentUserAffected && data.data.new_permission !== 'admin') {
-                            showStatus("Your admin permissions have been revoked. Redirecting...", "error");
-                            setTimeout(() => {
-                                window.location.href = '/files';
-                            }, 2500);
+                        const eventData = data.data;
+
+                        // Check if this update is for the *current* admin
+                        if (eventData.username === currentUser) {
+                            // This is an update for *me* (the admin)
+                            if (eventData.new_permission !== 'admin') {
+                                showStatus("Your admin permissions have been revoked. Redirecting...", "error");
+                                setTimeout(() => {
+                                    window.location.href = '/files';
+                                }, 2500);
+                            }
+                        } else {
+                            // This is an update for *another* user on the list
+                            const select = document.querySelector(`select[data-user-id="${eventData.id}"]`);
+                            if (select) {
+                                select.value = eventData.new_permission;
+                                // Highlight the row to show a change
+                                const row = select.closest('tr');
+                                if (row) {
+                                    row.style.transition = 'background-color 0.5s';
+                                    row.style.backgroundColor = 'var(--success-bg, #dcfce7)';
+                                    setTimeout(() => {
+                                        row.style.backgroundColor = '';
+                                    }, 2000);
+                                }
+                            }
                         }
                         break;
+                    // --- END OF UPDATED LOGIC ---
                 }
             } catch (err) { console.error('SSE Error:', err); }
         };
