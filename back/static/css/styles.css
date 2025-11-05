@@ -270,11 +270,37 @@ body {
     align-items: center;
     justify-content: center;
 }
-.file-meta { flex: 1; min-width: 0; }
-.file-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.35rem; }
-.file-sub { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.8rem; color: var(--text-secondary); }
-.meta-item { display: flex; align-items: center; gap: 0.35rem; }
-.meta-item .fa-solid { font-size: 0.7rem; }
+.file-meta { 
+    flex: 1;
+    min-width: 0;
+}
+.file-name {
+    display: inline-block;
+    max-width: 20vw;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow:
+    ellipsis;
+    margin-bottom: 0.35rem;
+}
+.file-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.meta-item {
+    display: flex; align-items: center; gap: 0.35rem;
+}
+.meta-item .fa-solid {
+    font-size: 0.7rem;
+}
 .menu-trigger {
     background-color: transparent;
     border: none;
